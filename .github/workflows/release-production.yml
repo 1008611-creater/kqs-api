@@ -41,7 +41,7 @@ jobs:
           corepack enable
           pnpm install --frozen-lockfile
           pnpm run build
-          tar -C ../backend/internal/web/dist -czf ../frontend-dist.tar.gz .
+          tar -C ../backend/internal/web/dist -czf ../backend/frontend-dist.tar.gz .
 
       - uses: actions/setup-go@v5
         with:
