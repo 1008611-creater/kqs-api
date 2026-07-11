@@ -29,7 +29,7 @@
 
 3. 仅在本地使用独立开发配置和数据库；不得复制 `/opt/sub2api/data` 到本地后作为生产写入端。
 4. 每个任务从最新 `main` 创建 `feature/<task>` 分支，完成测试后提交 PR。
-5. 生产发布只能通过 `Release Production` 工作流，并由 production Environment 批准。
+5. 生产发布只能通过 `Release Production` 工作流手动触发。`production` Environment 已限制为仅允许 `main` 部署；当前个人仓库计划未提供部署审核人开关，不能把它描述成已启用的人工批准门禁。
 
 ## 生产 Secrets
 

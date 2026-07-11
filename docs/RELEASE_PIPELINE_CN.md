@@ -2,7 +2,7 @@
 
 ## 入口
 
-GitHub Actions 的 `Release Production` 为唯一正常发布入口。它必须使用受保护的 `production` Environment，并在执行前获得人工批准。
+GitHub Actions 的 `Release Production` 为唯一正常发布入口。它使用 `production` Environment，并且该 Environment 只允许 `main` 部署；工作流只能通过 `workflow_dispatch` 手动触发。当前个人仓库计划未提供部署审核人开关，因此不能宣称已经配置人工批准门禁。
 
 ## 门禁
 
