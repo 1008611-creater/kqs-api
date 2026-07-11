@@ -1,0 +1,13 @@
+# Ensure source and deploy metadata retain portable line endings.
+backend/migrations/*.sql text eol=lf
+*.go text eol=lf
+*.ts text eol=lf
+*.tsx text eol=lf
+*.js text eol=lf
+*.jsx text eol=lf
+*.vue text eol=lf
+*.sh text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+Dockerfile text eol=lf
+*.ps1 text eol=crlf

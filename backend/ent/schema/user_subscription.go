@@ -1,0 +1,143 @@
+package schema
+
+import (
+	"time"
+
+	"github.com/Wei-Shaw/sub2api/ent/schema/mixins"
+	"github.com/Wei-Shaw/sub2api/internal/domain"
+
+	"entgo.io/ent"
+	"entgo.io/ent/dialect"
+	"entgo.io/ent/dialect/entsql"
+	"entgo.io/ent/schema"
+	"entgo.io/ent/schema/edge"
+	"entgo.io/ent/schema/field"
+	"entgo.io/ent/schema/index"
+)
+
+// UserSubscription holds the schema definition for the UserSubscription entity.
+type UserSubscription struct {
+	ent.Schema
+}
+
+func (UserSubscription) Annotations() []schema.Annotation {
+	return []schema.Annotation{
+		entsql.Annotation{Table: "user_subscriptions"},
+	}
+}
+
+func (UserSubscription) Mixin() []ent.Mixin {
+	return []ent.Mixin{
+		mixins.TimeMixin{},
+		mixins.SoftDeleteMixin{},
+	}
+}
+
+func (UserSubscription) Fields() []ent.Field {
+	return []ent.Field{
+		field.Int64("user_id"),
+		field.Int64("group_id"),
+
+		field.Time("starts_at").
+			SchemaType(map[string]string{dialect.Postgres: "timestamptz"}),
+		field.Time("expires_at").
+			SchemaType(map[string]string{dialect.Postgres: "timestamptz"}),
+		field.String("status").
+			MaxLen(20).
+			Default(domain.SubscriptionStatusActive),
+		field.Int("validity_days").
+			Default(1),
+
+		field.Time("daily_window_start").
+			Optional().
+			Nillable().
+			SchemaType(map[string]string{dialect.Postgres: "timestamptz"}),
+		field.Time("weekly_window_start").
+			Optional().
+			Nillable().
+			SchemaType(map[string]string{dialect.Postgres: "timestamptz"}),
+		field.Time("monthly_window_start").
+			Optional().
+			Nillable().
+			SchemaType(map[string]string{dialect.Postgres: "timestamptz"}),
+
+		field.Float("daily_usage_usd").
+			SchemaType(map[string]string{dialect.Postgres: "decimal(20,10)"}).
+			Default(0),
+		field.Float("daily_rollover_usd").
+			SchemaType(map[string]string{dialect.Postgres: "decimal(20,10)"}).
+			Default(0),
+		field.Float("weekly_usage_usd").
+			SchemaType(map[string]string{dialect.Postgres: "decimal(20,10)"}).
+			Default(0),
+		field.Float("monthly_usage_usd").
+			SchemaType(map[string]string{dialect.Postgres: "decimal(20,10)"}).
+			Default(0),
+
+		field.Float("daily_limit_override_usd").
+			SchemaType(map[string]string{dialect.Postgres: "decimal(20,8)"}).
+			Optional().
+			Nillable(),
+		field.Float("weekly_limit_override_usd").
+			SchemaType(map[string]string{dialect.Postgres: "decimal(20,8)"}).
+			Optional().
+			Nillable(),
+		field.Float("monthly_limit_override_usd").
+			SchemaType(map[string]string{dialect.Postgres: "decimal(20,8)"}).
+			Optional().
+			Nillable(),
+		field.Float("quota_bonus_multiplier").
+			SchemaType(map[string]string{dialect.Postgres: "decimal(10,4)"}).
+			Default(1),
+		field.String("quota_bonus_source").
+			Optional().
+			Nillable().
+			SchemaType(map[string]string{dialect.Postgres: "text"}),
+
+		field.Int64("assigned_by").
+			Optional().
+			Nillable(),
+		field.Time("assigned_at").
+			Default(time.Now).
+			SchemaType(map[string]string{dialect.Postgres: "timestamptz"}),
+		field.String("notes").
+			Optional().
+			Nillable().
+			SchemaType(map[string]string{dialect.Postgres: "text"}),
+	}
+}
+
+func (UserSubscription) Edges() []ent.Edge {
+	return []ent.Edge{
+		edge.From("user", User.Type).
+			Ref("subscriptions").
+			Field("user_id").
+			Unique().
+			Required(),
+		edge.From("group", Group.Type).
+			Ref("subscriptions").
+			Field("group_id").
+			Unique().
+			Required(),
+		edge.From("assigned_by_user", User.Type).
+			Ref("assigned_subscriptions").
+			Field("assigned_by").
+			Unique(),
+		edge.To("usage_logs", UsageLog.Type),
+	}
+}
+
+func (UserSubscription) Indexes() []ent.Index {
+	return []ent.Index{
+		index.Fields("user_id"),
+		index.Fields("group_id"),
+		index.Fields("status"),
+		index.Fields("expires_at"),
+		// 活跃订阅查询复合索引（线上由 SQL 迁移创建部分索引，schema 仅用于模型可读性对齐）
+		index.Fields("user_id", "status", "expires_at"),
+		index.Fields("assigned_by"),
+		// 普通查询索引。同用户同分组允许存在多张独立订阅卡，避免重复购买被折算成时间叠加。
+		index.Fields("user_id", "group_id"),
+		index.Fields("deleted_at"),
+	}
+}

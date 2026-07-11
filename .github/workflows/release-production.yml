@@ -1,0 +1,93 @@
+name: Release Production
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: Git ref or commit SHA to release
+        required: true
+        default: main
+
+permissions:
+  contents: read
+
+concurrency:
+  group: kqs-production-release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: frontend/pnpm-lock.yaml
+
+      - name: Build frontend release artifact
+        working-directory: frontend
+        run: |
+          corepack enable
+          corepack prepare pnpm@9.15.9 --activate
+          pnpm install --frozen-lockfile
+          pnpm run build
+          tar -C ../backend/internal/web/dist -czf ../frontend-dist.tar.gz .
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.26.3'
+          cache-dependency-path: backend/go.sum
+
+      - name: Build Linux binary with embedded frontend
+        working-directory: backend
+        run: |
+          RELEASE_ID="${GITHUB_SHA::12}"
+          CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -tags embed -trimpath \
+            -ldflags="-s -w -X main.Commit=${GITHUB_SHA} -X main.BuildType=release" \
+            -o "sub2api-${RELEASE_ID}" ./cmd/server
+          test -x "sub2api-${RELEASE_ID}"
+          grep -a -q '<html' "sub2api-${RELEASE_ID}"
+          sha256sum "sub2api-${RELEASE_ID}" > "sub2api-${RELEASE_ID}.sha256"
+
+      - name: Configure production SSH
+        env:
+          PROD_SSH_KEY: ${{ secrets.PROD_SSH_PRIVATE_KEY }}
+          PROD_SSH_KNOWN_HOSTS: ${{ secrets.PROD_SSH_KNOWN_HOSTS }}
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$PROD_SSH_KEY" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          printf '%s\n' "$PROD_SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
+
+      - name: Upload and activate release
+        env:
+          PROD_SSH_HOST: ${{ secrets.PROD_SSH_HOST }}
+          PROD_SSH_PORT: ${{ secrets.PROD_SSH_PORT }}
+          PROD_SSH_USER: ${{ secrets.PROD_SSH_USER }}
+        run: |
+          RELEASE_ID="${GITHUB_SHA::12}"
+          RELEASE_DIR="/tmp/sub2api-release-${RELEASE_ID}"
+          BINARY_SHA="$(awk '{print $1}' "backend/sub2api-${RELEASE_ID}.sha256")"
+          TARGET="${PROD_SSH_USER}@${PROD_SSH_HOST}"
+          SSH=(ssh -i ~/.ssh/id_ed25519 -o BatchMode=yes -o StrictHostKeyChecking=yes -p "${PROD_SSH_PORT:-22}")
+          SCP=(scp -i ~/.ssh/id_ed25519 -o BatchMode=yes -o StrictHostKeyChecking=yes -P "${PROD_SSH_PORT:-22}")
+          "${SSH[@]}" "$TARGET" "mkdir -p '$RELEASE_DIR'"
+          "${SCP[@]}" "backend/sub2api-${RELEASE_ID}" "$TARGET:$RELEASE_DIR/sub2api"
+          "${SCP[@]}" "backend/frontend-dist.tar.gz" "$TARGET:$RELEASE_DIR/frontend-dist.tar.gz"
+          "${SCP[@]}" "ops/production/deploy-remote.sh" "$TARGET:$RELEASE_DIR/deploy-remote.sh"
+          "${SSH[@]}" "$TARGET" "chmod 700 '$RELEASE_DIR/deploy-remote.sh'; '$RELEASE_DIR/deploy-remote.sh' '$RELEASE_DIR' 'sub2api:release-${RELEASE_ID}' '$BINARY_SHA'"
+
+      - name: Verify public routes and authenticated API
+        env:
+          SMOKE_API_KEY: ${{ secrets.PROD_SMOKE_API_KEY }}
+        run: |
+          chmod +x ops/production/verify-public.sh
+          REQUIRE_SMOKE_API_KEY=1 SMOKE_API_KEY="$SMOKE_API_KEY" ops/production/verify-public.sh https://api.cauai.fun

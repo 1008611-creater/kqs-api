@@ -1,0 +1,206 @@
+<template>
+  <div class="auth-shell">
+    <main class="auth-main">
+      <section class="auth-panel">
+        <router-link to="/home" class="auth-brand">
+          <BrandLogo :src="siteLogo || defaultLogo" :alt="siteName" variant="auth" />
+          <span>
+            <strong>{{ siteName }}</strong>
+            <small>{{ siteSubtitle }}</small>
+          </span>
+        </router-link>
+
+        <div class="auth-content">
+          <slot />
+        </div>
+
+        <div class="auth-footer">
+          <slot name="footer" />
+        </div>
+
+        <div class="auth-copyright">
+          &copy; {{ currentYear }} {{ siteName }}. All rights reserved.
+        </div>
+      </section>
+    </main>
+  </div>
+</template>
+
+<script setup lang="ts">
+import { computed, onMounted } from 'vue'
+import { useAppStore } from '@/stores'
+import BrandLogo from '@/components/common/BrandLogo.vue'
+import { sanitizeUrl } from '@/utils/url'
+
+const appStore = useAppStore()
+
+const siteName = computed(() => appStore.cachedPublicSettings?.site_name || appStore.siteName || '矿泉水API')
+const siteLogo = computed(() => sanitizeUrl(appStore.siteLogo || '', { allowRelative: true, allowDataUrl: true }))
+const siteSubtitle = computed(() => appStore.cachedPublicSettings?.site_subtitle || '矿泉水 AI API 网关平台')
+const defaultLogo = '/kqs-water-logo.svg?v=20260612'
+const currentYear = computed(() => new Date().getFullYear())
+
+onMounted(() => {
+  appStore.fetchPublicSettings()
+})
+</script>
+
+<style scoped>
+.auth-shell {
+  position: relative;
+  min-height: 100dvh;
+  overflow: hidden;
+  background:
+    radial-gradient(ellipse at 18% 12%, rgba(34, 197, 94, 0.06), transparent 28rem),
+    radial-gradient(ellipse at 84% 78%, rgba(27, 93, 70, 0.28), transparent 34rem),
+    linear-gradient(115deg, rgba(255, 255, 255, 0.018), transparent 38%, rgba(255, 255, 255, 0.008) 70%, transparent),
+    linear-gradient(135deg, #08231d 0%, #0b342a 44%, #082920 100%);
+}
+
+.auth-shell::before,
+.auth-shell::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.auth-shell::before {
+  background:
+    url('/kqs-mountain-water-texture.fast.jpg?v=20260616-fastbg') center top / cover no-repeat,
+    linear-gradient(180deg, rgba(34, 197, 94, 0.03), transparent 42%, rgba(0, 0, 0, 0.12));
+  opacity: 0.88;
+}
+
+.auth-shell::after {
+  background: radial-gradient(ellipse at 50% 45%, transparent 0%, rgba(2, 12, 9, 0.18) 72%, rgba(2, 12, 9, 0.42) 100%);
+}
+
+.auth-main {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  min-height: 100dvh;
+  align-items: center;
+  justify-content: center;
+  padding: clamp(1rem, 4vw, 2.5rem);
+}
+
+.auth-panel {
+  width: min(100%, 28rem);
+  color: #edf7ee;
+}
+
+.auth-brand {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.9rem;
+  margin-bottom: 1.6rem;
+  text-decoration: none;
+}
+
+.auth-brand span {
+  min-width: 0;
+}
+
+.auth-brand strong,
+.auth-brand small {
+  display: block;
+}
+
+.auth-brand strong {
+  color: #edf7ee;
+  font-size: 1.35rem;
+  font-weight: 900;
+  letter-spacing: 0;
+  line-height: 1.1;
+}
+
+.auth-brand small {
+  margin-top: 0.18rem;
+  color: rgba(220, 239, 224, 0.68);
+  font-size: 0.78rem;
+}
+
+.auth-brand :deep(.brand-logo) {
+  border-color: rgba(43, 132, 83, 0.38);
+  border-radius: 8px;
+  background: rgba(5, 29, 24, 0.78);
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.24);
+}
+
+.auth-brand :deep(.brand-logo::before),
+.auth-brand :deep(.brand-logo::after) {
+  display: none;
+}
+
+.auth-brand :deep(.brand-logo__plate) {
+  border-radius: 6px;
+  background: transparent;
+}
+
+.auth-content {
+  color: #edf7ee;
+  border-radius: 8px;
+  padding: clamp(1.3rem, 4vw, 1.9rem);
+  background: rgba(5, 29, 24, 0.78);
+  box-shadow: 0 18px 54px rgba(0, 0, 0, 0.26);
+}
+
+.auth-content :deep(h2) {
+  color: #edf7ee;
+  letter-spacing: 0;
+}
+
+.auth-content :deep(p),
+.auth-content :deep(.input-label),
+.auth-content :deep(.input-hint) {
+  color: rgba(220, 239, 224, 0.68);
+}
+
+.auth-content :deep(.input) {
+  min-height: 2.85rem;
+  border-radius: 8px;
+  border-color: rgba(43, 132, 83, 0.38);
+  background: rgba(2, 18, 15, 0.72);
+  color: #edf7ee;
+}
+
+.auth-content :deep(.input::placeholder) {
+  color: rgba(220, 239, 224, 0.42);
+}
+
+.auth-content :deep(.btn-primary) {
+  border-radius: 8px;
+}
+
+.auth-footer {
+  margin-top: 1rem;
+  text-align: center;
+  color: rgba(220, 239, 224, 0.66);
+  font-size: 0.875rem;
+}
+
+.auth-copyright {
+  margin-top: 1.3rem;
+  text-align: center;
+  color: rgba(220, 239, 224, 0.36);
+  font-size: 0.75rem;
+}
+
+@media (max-width: 640px) {
+  .auth-main {
+    align-items: flex-start;
+    padding: 1rem;
+  }
+
+  .auth-brand {
+    margin-top: 0.5rem;
+  }
+
+  .auth-content {
+    padding: 1.15rem;
+  }
+}
+</style>

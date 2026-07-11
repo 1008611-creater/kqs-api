@@ -1,0 +1,125 @@
+.keys-page-layout .keys-table-shell,
+.keys-page-layout .keys-table-shell .table-wrapper {
+  border-color: rgba(43, 132, 83, 0.38) !important;
+  background: rgba(5, 29, 24, 0.92) !important;
+}
+
+.keys-page-layout .keys-table-shell table {
+  background: rgba(5, 29, 24, 0.96) !important;
+}
+
+.keys-page-layout .keys-table-shell .table-header,
+.keys-page-layout .keys-table-shell thead,
+.keys-page-layout .keys-table-shell .bg-gray-50,
+.keys-page-layout .keys-table-shell .sticky-header-cell {
+  background: linear-gradient(180deg, rgba(6, 39, 30, 0.98), rgba(3, 22, 18, 0.98)) !important;
+  background-color: rgba(6, 39, 30, 0.98) !important;
+}
+
+.keys-page-layout .keys-table-shell .table-body,
+.keys-page-layout .keys-table-shell tbody,
+.keys-page-layout .keys-table-shell .bg-white {
+  background: rgba(5, 29, 24, 0.96) !important;
+}
+
+.keys-page-layout .keys-table-shell thead th,
+.keys-page-layout .keys-table-shell tbody td {
+  border-color: rgba(43, 132, 83, 0.3) !important;
+}
+
+.keys-page-layout .keys-table-shell thead th {
+  color: rgba(220, 239, 224, 0.78) !important;
+}
+
+.keys-page-layout .keys-table-shell tbody tr[data-row-id] {
+  background: rgba(7, 35, 29, 0.98) !important;
+}
+
+.keys-page-layout .keys-table-shell tbody tr[data-row-id]:nth-child(even) {
+  background: rgba(5, 29, 24, 0.98) !important;
+}
+
+.keys-page-layout .keys-table-shell tbody tr[data-row-id] > td,
+.keys-page-layout .keys-table-shell tbody tr[data-row-id] .sticky-col {
+  background: inherit !important;
+  background-color: inherit !important;
+}
+
+.keys-page-layout .keys-table-shell tbody tr[data-row-id]:hover {
+  background: rgba(12, 58, 43, 0.98) !important;
+}
+
+.keys-page-layout .keys-table-shell tbody tr[data-row-id]:hover > td,
+.keys-page-layout .keys-table-shell tbody tr[data-row-id]:hover .sticky-col {
+  background: inherit !important;
+  background-color: inherit !important;
+}
+
+.keys-page-layout .keys-table-shell tbody td,
+.keys-page-layout .keys-table-shell .text-gray-900,
+.keys-page-layout .keys-table-shell .text-gray-700,
+.keys-page-layout .keys-table-shell .dark\:text-gray-100,
+.keys-page-layout .keys-table-shell .dark\:text-white {
+  color: #edf7ee !important;
+}
+
+.keys-page-layout .keys-table-shell .text-gray-600,
+.keys-page-layout .keys-table-shell .text-gray-500,
+.keys-page-layout .keys-table-shell .text-gray-400,
+.keys-page-layout .keys-table-shell .dark\:text-gray-300,
+.keys-page-layout .keys-table-shell .dark\:text-gray-400,
+.keys-page-layout .keys-table-shell .dark\:text-dark-400,
+.keys-page-layout .keys-table-shell .dark\:text-dark-500 {
+  color: rgba(220, 239, 224, 0.64) !important;
+}
+
+.keys-page-layout .keys-token {
+  border-color: rgba(43, 132, 83, 0.3) !important;
+  background: rgba(3, 22, 18, 0.68) !important;
+  color: #86efac !important;
+}
+
+.keys-page-layout .keys-table-shell > .space-y-3 > .rounded-lg,
+.keys-page-layout .keys-table-shell .space-y-3 > .rounded-lg.bg-white {
+  border-color: rgba(43, 132, 83, 0.32) !important;
+  background: rgba(5, 29, 24, 0.82) !important;
+  color: #edf7ee !important;
+}
+
+.keys-page-layout .keys-table-shell .text-right.text-sm {
+  color: #edf7ee !important;
+}
+
+.keys-page-layout .layout-section-fixed > .flex.items-center.justify-between {
+  border-color: rgba(43, 132, 83, 0.32) !important;
+  border-radius: 8px;
+  background: rgba(5, 29, 24, 0.86) !important;
+  color: #edf7ee !important;
+}
+
+.keys-page-layout .layout-section-fixed > .flex.items-center.justify-between p,
+.keys-page-layout .layout-section-fixed > .flex.items-center.justify-between span {
+  color: rgba(220, 239, 224, 0.64) !important;
+}
+
+.keys-page-layout .layout-section-fixed > .flex.items-center.justify-between .font-medium {
+  color: #edf7ee !important;
+}
+
+.keys-page-layout .layout-section-fixed > .flex.items-center.justify-between button {
+  border-color: rgba(43, 132, 83, 0.36) !important;
+  background: rgba(3, 22, 18, 0.72) !important;
+  color: rgba(220, 239, 224, 0.72) !important;
+}
+
+.keys-page-layout .layout-section-fixed > .flex.items-center.justify-between button:hover:not(:disabled) {
+  border-color: rgba(34, 197, 94, 0.56) !important;
+  background: rgba(34, 197, 94, 0.12) !important;
+  color: #bbf7d0 !important;
+}
+
+.keys-page-layout .layout-section-fixed > .flex.items-center.justify-between button[aria-current='page'] {
+  border-color: rgba(34, 197, 94, 0.72) !important;
+  background: rgba(34, 197, 94, 0.18) !important;
+  color: #86efac !important;
+}

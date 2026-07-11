@@ -1,0 +1,1131 @@
+<template>
+  <div
+    class="rounded-lg border border-blue-200 bg-blue-50 p-4 dark:border-blue-700 dark:bg-blue-900/30"
+  >
+      <div class="flex items-start gap-4">
+      <div class="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-blue-500">
+        <Icon name="link" size="md" class="text-white" />
+      </div>
+      <div class="flex-1">
+        <h4 class="mb-3 font-semibold text-blue-900 dark:text-blue-200">{{ oauthTitle }}</h4>
+
+        <div v-if="isOpenAI" class="openai-auth-guide">
+          <div class="openai-auth-guide__item">
+            <span>01</span>
+            <p>{{ t('admin.accounts.oauth.openai.quickGuide.choose') }}</p>
+          </div>
+          <div class="openai-auth-guide__item">
+            <span>02</span>
+            <p>{{ t('admin.accounts.oauth.openai.quickGuide.paste') }}</p>
+          </div>
+          <div class="openai-auth-guide__item">
+            <span>03</span>
+            <p>{{ t('admin.accounts.oauth.openai.quickGuide.create') }}</p>
+          </div>
+        </div>
+
+        <!-- Auth Method Selection -->
+        <div v-if="showMethodSelection" class="mb-4">
+          <label class="mb-2 block text-sm font-medium text-blue-800 dark:text-blue-300">
+            {{ methodLabel }}
+          </label>
+          <div class="auth-method-grid" role="radiogroup" :aria-label="methodLabel">
+            <button
+              v-for="method in authMethodOptions"
+              :key="method.value"
+              type="button"
+              role="radio"
+              :aria-checked="inputMethod === method.value"
+              :class="[
+                'auth-method-card',
+                inputMethod === method.value ? 'auth-method-card--active' : ''
+              ]"
+              @click="inputMethod = method.value"
+            >
+              <span class="auth-method-card__radio" aria-hidden="true">
+                <span v-if="inputMethod === method.value"></span>
+              </span>
+              <span class="auth-method-card__body">
+                <span class="auth-method-card__title">
+                  {{ method.label }}
+                  <span v-if="method.recommended" class="auth-method-card__badge">
+                    {{ t('admin.accounts.oauth.recommended') }}
+                  </span>
+                </span>
+                <span class="auth-method-card__desc">{{ method.description }}</span>
+              </span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Refresh Token Input (OpenAI / Antigravity / Mobile RT) -->
+        <div v-if="inputMethod === 'refresh_token' || inputMethod === 'mobile_refresh_token'" class="space-y-4">
+          <div
+            class="rounded-lg border border-blue-300 bg-white/80 p-4 dark:border-blue-600 dark:bg-gray-800/80"
+          >
+            <p class="mb-3 text-sm text-blue-700 dark:text-blue-300">
+              {{ t(getOAuthKey('refreshTokenDesc')) }}
+            </p>
+
+            <!-- Refresh Token Input -->
+            <div class="mb-4">
+              <label
+                class="mb-2 flex items-center gap-2 text-sm font-semibold text-gray-700 dark:text-gray-300"
+              >
+                <Icon name="key" size="sm" class="text-blue-500" />
+                Refresh Token
+                <span
+                  v-if="parsedRefreshTokenCount > 1"
+                  class="rounded-full bg-blue-500 px-2 py-0.5 text-xs text-white"
+                >
+                  {{ t('admin.accounts.oauth.keysCount', { count: parsedRefreshTokenCount }) }}
+                </span>
+              </label>
+              <textarea
+                v-model="refreshTokenInput"
+                rows="3"
+                class="input w-full resize-y font-mono text-sm"
+                :placeholder="t(getOAuthKey('refreshTokenPlaceholder'))"
+              ></textarea>
+              <p
+                v-if="parsedRefreshTokenCount > 1"
+                class="mt-1 text-xs text-blue-600 dark:text-blue-400"
+              >
+                {{ t('admin.accounts.oauth.batchCreateAccounts', { count: parsedRefreshTokenCount }) }}
+              </p>
+            </div>
+
+            <!-- Error Message -->
+            <div
+              v-if="error"
+              class="mb-4 rounded-lg border border-red-200 bg-red-50 p-3 dark:border-red-700 dark:bg-red-900/30"
+            >
+              <p class="whitespace-pre-line text-sm text-red-600 dark:text-red-400">
+                {{ error }}
+              </p>
+            </div>
+
+            <!-- Validate Button -->
+            <button
+              type="button"
+              class="btn btn-primary w-full"
+              :disabled="loading || !refreshTokenInput.trim()"
+              @click="handleValidateRefreshToken"
+            >
+              <svg
+                v-if="loading"
+                class="-ml-1 mr-2 h-4 w-4 animate-spin"
+                fill="none"
+                viewBox="0 0 24 24"
+              >
+                <circle
+                  class="opacity-25"
+                  cx="12"
+                  cy="12"
+                  r="10"
+                  stroke="currentColor"
+                  stroke-width="4"
+                ></circle>
+                <path
+                  class="opacity-75"
+                  fill="currentColor"
+                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                ></path>
+              </svg>
+              <Icon v-else name="sparkles" size="sm" class="mr-2" />
+              {{
+                loading
+                  ? t(getOAuthKey('validating'))
+                  : t(getOAuthKey('validateAndCreate'))
+              }}
+            </button>
+          </div>
+        </div>
+
+        <!-- Codex JSON / AT 批量输入 -->
+        <div v-if="inputMethod === 'codex_session'" class="space-y-4">
+          <div
+            class="rounded-lg border border-blue-300 bg-white/80 p-4 dark:border-blue-600 dark:bg-gray-800/80"
+          >
+            <p class="mb-3 text-sm text-blue-700 dark:text-blue-300">
+              {{ t('admin.accounts.oauth.openai.codexSessionDesc') }}
+            </p>
+
+            <div class="codex-import-accepts">
+              <span>{{ t('admin.accounts.oauth.openai.codexSessionAcceptJson') }}</span>
+              <span>{{ t('admin.accounts.oauth.openai.codexSessionAcceptAccessToken') }}</span>
+              <span>{{ t('admin.accounts.oauth.openai.codexSessionAcceptRefreshToken') }}</span>
+            </div>
+
+            <div class="mb-4">
+              <label
+                class="mb-2 flex items-center gap-2 text-sm font-semibold text-gray-700 dark:text-gray-300"
+              >
+                <Icon name="key" size="sm" class="text-blue-500" />
+                {{ t('admin.accounts.oauth.openai.codexSessionInputLabel') }}
+                <span
+                  v-if="parsedCodexSessionCount > 1"
+                  class="rounded-full bg-blue-500 px-2 py-0.5 text-xs text-white"
+                >
+                  {{ t('admin.accounts.oauth.keysCount', { count: parsedCodexSessionCount }) }}
+                </span>
+              </label>
+              <textarea
+                v-model="codexSessionInput"
+                rows="8"
+                class="input w-full resize-y font-mono text-sm"
+                :placeholder="t('admin.accounts.oauth.openai.codexSessionPlaceholder')"
+                spellcheck="false"
+              ></textarea>
+              <p class="mt-1 text-xs text-blue-600 dark:text-blue-400">
+                {{ t('admin.accounts.oauth.openai.codexSessionHint') }}
+              </p>
+            </div>
+
+            <div class="codex-import-notes">
+              <p>{{ t('admin.accounts.oauth.openai.codexSessionTipOnePerLine') }}</p>
+              <p>{{ t('admin.accounts.oauth.openai.codexSessionTipRefreshToken') }}</p>
+              <p>{{ t('admin.accounts.oauth.openai.codexSessionTipAccessToken') }}</p>
+            </div>
+
+            <div
+              v-if="error"
+              class="mb-4 rounded-lg border border-red-200 bg-red-50 p-3 dark:border-red-700 dark:bg-red-900/30"
+            >
+              <p class="whitespace-pre-line text-sm text-red-600 dark:text-red-400">
+                {{ error }}
+              </p>
+            </div>
+
+            <button
+              type="button"
+              class="btn btn-primary w-full"
+              :disabled="loading || !codexSessionInput.trim()"
+              @click="handleImportCodexSession"
+            >
+              <svg
+                v-if="loading"
+                class="-ml-1 mr-2 h-4 w-4 animate-spin"
+                fill="none"
+                viewBox="0 0 24 24"
+              >
+                <circle
+                  class="opacity-25"
+                  cx="12"
+                  cy="12"
+                  r="10"
+                  stroke="currentColor"
+                  stroke-width="4"
+                ></circle>
+                <path
+                  class="opacity-75"
+                  fill="currentColor"
+                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                ></path>
+              </svg>
+              <Icon v-else name="sparkles" size="sm" class="mr-2" />
+              {{
+                loading
+                  ? t('admin.accounts.oauth.openai.validating')
+                  : t('admin.accounts.oauth.openai.codexSessionImportAndCreate')
+              }}
+            </button>
+          </div>
+        </div>
+
+        <!-- Cookie Auto-Auth Form -->
+        <div v-if="inputMethod === 'cookie'" class="space-y-4">
+          <div
+            class="rounded-lg border border-blue-300 bg-white/80 p-4 dark:border-blue-600 dark:bg-gray-800/80"
+          >
+            <p class="mb-3 text-sm text-blue-700 dark:text-blue-300">
+              {{ t('admin.accounts.oauth.cookieAutoAuthDesc') }}
+            </p>
+
+            <!-- sessionKey Input -->
+            <div class="mb-4">
+              <label
+                class="mb-2 flex items-center gap-2 text-sm font-semibold text-gray-700 dark:text-gray-300"
+              >
+                <Icon name="key" size="sm" class="text-blue-500" />
+                {{ t('admin.accounts.oauth.sessionKey') }}
+                <span
+                  v-if="parsedKeyCount > 1 && allowMultiple"
+                  class="rounded-full bg-blue-500 px-2 py-0.5 text-xs text-white"
+                >
+                  {{ t('admin.accounts.oauth.keysCount', { count: parsedKeyCount }) }}
+                </span>
+                <button
+                  v-if="showHelp"
+                  type="button"
+                  class="text-blue-500 hover:text-blue-600"
+                  @click="showHelpDialog = !showHelpDialog"
+                >
+                  <svg
+                    class="h-4 w-4"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    stroke-width="1.5"
+                  >
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      d="M9.879 7.519c1.171-1.025 3.071-1.025 4.242 0 1.172 1.025 1.172 2.687 0 3.712-.203.179-.43.326-.67.442-.745.361-1.45.999-1.45 1.827v.75M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9 5.25h.008v.008H12v-.008z"
+                    />
+                  </svg>
+                </button>
+              </label>
+              <textarea
+                v-model="sessionKeyInput"
+                rows="3"
+                class="input w-full resize-y font-mono text-sm"
+                :placeholder="
+                  allowMultiple
+                    ? t('admin.accounts.oauth.sessionKeyPlaceholder')
+                    : t('admin.accounts.oauth.sessionKeyPlaceholderSingle')
+                "
+              ></textarea>
+              <p
+                v-if="parsedKeyCount > 1 && allowMultiple"
+                class="mt-1 text-xs text-blue-600 dark:text-blue-400"
+              >
+                {{ t('admin.accounts.oauth.batchCreateAccounts', { count: parsedKeyCount }) }}
+              </p>
+            </div>
+
+            <!-- Help Section -->
+            <div
+              v-if="showHelpDialog && showHelp"
+              class="mb-4 rounded-lg border border-amber-200 bg-amber-50 p-3 dark:border-amber-700 dark:bg-amber-900/30"
+            >
+              <h5 class="mb-2 font-semibold text-amber-800 dark:text-amber-200">
+                {{ t('admin.accounts.oauth.howToGetSessionKey') }}
+              </h5>
+              <ol
+                class="list-inside list-decimal space-y-1 text-xs text-amber-700 dark:text-amber-300"
+              >
+                <li>{{ t('admin.accounts.oauth.step1') }}</li>
+                <li>{{ t('admin.accounts.oauth.step2') }}</li>
+                <li>{{ t('admin.accounts.oauth.step3') }}</li>
+                <li>{{ t('admin.accounts.oauth.step4') }}</li>
+                <li>{{ t('admin.accounts.oauth.step5') }}</li>
+                <li>{{ t('admin.accounts.oauth.step6') }}</li>
+              </ol>
+              <p
+                class="mt-2 text-xs text-amber-600 dark:text-amber-400"
+                v-text="t('admin.accounts.oauth.sessionKeyFormat')"
+              ></p>
+            </div>
+
+            <!-- Error Message -->
+            <div
+              v-if="error"
+              class="mb-4 rounded-lg border border-red-200 bg-red-50 p-3 dark:border-red-700 dark:bg-red-900/30"
+            >
+              <p class="whitespace-pre-line text-sm text-red-600 dark:text-red-400">
+                {{ error }}
+              </p>
+            </div>
+
+            <!-- Auth Button -->
+            <button
+              type="button"
+              class="btn btn-primary w-full"
+              :disabled="loading || !sessionKeyInput.trim()"
+              @click="handleCookieAuth"
+            >
+              <svg
+                v-if="loading"
+                class="-ml-1 mr-2 h-4 w-4 animate-spin"
+                fill="none"
+                viewBox="0 0 24 24"
+              >
+                <circle
+                  class="opacity-25"
+                  cx="12"
+                  cy="12"
+                  r="10"
+                  stroke="currentColor"
+                  stroke-width="4"
+                ></circle>
+                <path
+                  class="opacity-75"
+                  fill="currentColor"
+                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                ></path>
+              </svg>
+              <Icon v-else name="sparkles" size="sm" class="mr-2" />
+              {{
+                loading
+                  ? t('admin.accounts.oauth.authorizing')
+                  : t('admin.accounts.oauth.startAutoAuth')
+              }}
+            </button>
+          </div>
+        </div>
+
+        <!-- Manual Authorization Flow -->
+        <div v-if="inputMethod === 'manual'" class="space-y-4">
+          <p class="mb-4 text-sm text-blue-800 dark:text-blue-300">
+            {{ oauthFollowSteps }}
+          </p>
+
+          <!-- Step 1: Generate Auth URL -->
+          <div
+            class="rounded-lg border border-blue-300 bg-white/80 p-4 dark:border-blue-600 dark:bg-gray-800/80"
+          >
+            <div class="flex items-start gap-3">
+              <div
+                class="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-blue-600 text-xs font-bold text-white"
+              >
+                1
+              </div>
+              <div class="flex-1">
+                <p class="mb-2 font-medium text-blue-900 dark:text-blue-200">
+                  {{ oauthStep1GenerateUrl }}
+                </p>
+                <div v-if="showProjectId && platform === 'gemini'" class="mb-3">
+                  <label class="input-label flex items-center gap-2">
+                    {{ t('admin.accounts.oauth.gemini.projectIdLabel') }}
+                    <a
+                      href="https://console.cloud.google.com/"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      class="inline-flex items-center gap-1 text-xs font-normal text-blue-500 hover:text-blue-600 dark:text-blue-400"
+                    >
+                      <svg class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M9.879 7.519c1.171-1.025 3.071-1.025 4.242 0 1.172 1.025 1.172 2.687 0 3.712-.203.179-.43.326-.67.442-.745.361-1.45.999-1.45 1.827v.75M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9 5.25h.008v.008H12v-.008z" />
+                      </svg>
+                      {{ t('admin.accounts.oauth.gemini.howToGetProjectId') }}
+                    </a>
+                  </label>
+                  <input
+                    v-model="projectId"
+                    type="text"
+                    class="input w-full font-mono text-sm"
+                    :placeholder="t('admin.accounts.oauth.gemini.projectIdPlaceholder')"
+                  />
+                  <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                    {{ t('admin.accounts.oauth.gemini.projectIdHint') }}
+                  </p>
+                </div>
+                <button
+                  v-if="!authUrl"
+                  type="button"
+                  :disabled="loading"
+                  class="btn btn-primary text-sm"
+                  @click="handleGenerateUrl"
+                >
+                  <svg
+                    v-if="loading"
+                    class="-ml-1 mr-2 h-4 w-4 animate-spin"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                  >
+                    <circle
+                      class="opacity-25"
+                      cx="12"
+                      cy="12"
+                      r="10"
+                      stroke="currentColor"
+                      stroke-width="4"
+                    ></circle>
+                    <path
+                      class="opacity-75"
+                      fill="currentColor"
+                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                    ></path>
+                  </svg>
+                  <Icon v-else name="link" size="sm" class="mr-2" />
+                  {{ loading ? t('admin.accounts.oauth.generating') : oauthGenerateAuthUrl }}
+                </button>
+                <div v-else class="space-y-3">
+                  <div class="flex items-center gap-2">
+                    <input
+                      :value="authUrl"
+                      readonly
+                      type="text"
+                      class="input flex-1 bg-gray-50 font-mono text-xs dark:bg-gray-700"
+                    />
+                    <button
+                      type="button"
+                      class="btn btn-secondary p-2"
+                      title="Copy URL"
+                      @click="handleCopyUrl"
+                    >
+                      <svg
+                        v-if="!copied"
+                        class="h-4 w-4"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                        stroke-width="1.5"
+                      >
+                        <path
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                          d="M15.666 3.888A2.25 2.25 0 0013.5 2.25h-3c-1.03 0-1.9.693-2.166 1.638m7.332 0c.055.194.084.4.084.612v0a.75.75 0 01-.75.75H9a.75.75 0 01-.75-.75v0c0-.212.03-.418.084-.612m7.332 0c.646.049 1.288.11 1.927.184 1.1.128 1.907 1.077 1.907 2.185V19.5a2.25 2.25 0 01-2.25 2.25H6.75A2.25 2.25 0 014.5 19.5V6.257c0-1.108.806-2.057 1.907-2.185a48.208 48.208 0 011.927-.184"
+                        />
+                      </svg>
+                      <Icon
+                        v-else
+                        name="check"
+                        size="sm"
+                        class="text-green-500"
+                        :stroke-width="2"
+                      />
+                    </button>
+                  </div>
+                  <button
+                    type="button"
+                    class="text-xs text-blue-600 hover:text-blue-700 dark:text-blue-400"
+                    @click="handleRegenerate"
+                  >
+                    <Icon name="refresh" size="xs" class="mr-1 inline" />
+                    {{ t('admin.accounts.oauth.regenerate') }}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Step 2: Open URL and authorize -->
+          <div
+            class="rounded-lg border border-blue-300 bg-white/80 p-4 dark:border-blue-600 dark:bg-gray-800/80"
+          >
+            <div class="flex items-start gap-3">
+              <div
+                class="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-blue-600 text-xs font-bold text-white"
+              >
+                2
+              </div>
+              <div class="flex-1">
+                <p class="mb-2 font-medium text-blue-900 dark:text-blue-200">
+                  {{ oauthStep2OpenUrl }}
+                </p>
+                <p class="text-sm text-blue-700 dark:text-blue-300">
+                  {{ oauthOpenUrlDesc }}
+                </p>
+                <!-- OpenAI Important Notice -->
+                <div
+                  v-if="isOpenAI"
+                  class="mt-2 rounded border border-amber-300 bg-amber-50 p-3 dark:border-amber-700 dark:bg-amber-900/30"
+                >
+                  <p
+                    class="text-xs text-amber-800 dark:text-amber-300"
+                    v-text="oauthImportantNotice"
+                  ></p>
+                </div>
+                <!-- Proxy Warning (for non-OpenAI) -->
+                <div
+                  v-else-if="showProxyWarning"
+                  class="mt-2 rounded border border-yellow-300 bg-yellow-50 p-3 dark:border-yellow-700 dark:bg-yellow-900/30"
+                >
+                  <p
+                    class="text-xs text-yellow-800 dark:text-yellow-300"
+                    v-text="t('admin.accounts.oauth.proxyWarning')"
+                  ></p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Step 3: Enter authorization code -->
+          <div
+            class="rounded-lg border border-blue-300 bg-white/80 p-4 dark:border-blue-600 dark:bg-gray-800/80"
+          >
+            <div class="flex items-start gap-3">
+              <div
+                class="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-blue-600 text-xs font-bold text-white"
+              >
+                3
+              </div>
+              <div class="flex-1">
+                <p class="mb-2 font-medium text-blue-900 dark:text-blue-200">
+                  {{ oauthStep3EnterCode }}
+                </p>
+                <p
+                  class="mb-3 text-sm text-blue-700 dark:text-blue-300"
+                  v-text="oauthAuthCodeDesc"
+                ></p>
+                <div>
+                  <label class="input-label">
+                    <Icon name="key" size="sm" class="mr-1 inline text-blue-500" />
+                    {{ oauthAuthCode }}
+                  </label>
+                  <textarea
+                    v-model="authCodeInput"
+                    rows="3"
+                    class="input w-full resize-none font-mono text-sm"
+                    :placeholder="oauthAuthCodePlaceholder"
+                  ></textarea>
+                  <p class="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                    <Icon name="infoCircle" size="xs" class="mr-1 inline" />
+                    {{ oauthAuthCodeHint }}
+                  </p>
+
+                  <!-- Gemini-specific state parameter warning -->
+                  <div
+                    v-if="platform === 'gemini'"
+                    class="mt-3 rounded-lg border-2 border-amber-400 bg-amber-50 p-3 dark:border-amber-600 dark:bg-amber-900/30"
+                  >
+                    <div class="flex items-start gap-2">
+                      <Icon
+                        name="exclamationTriangle"
+                        size="md"
+                        class="flex-shrink-0 text-amber-600 dark:text-amber-400"
+                        :stroke-width="2"
+                      />
+                      <div class="text-sm text-amber-800 dark:text-amber-300">
+                        <p class="font-semibold">{{ $t('admin.accounts.oauth.gemini.stateWarningTitle') }}</p>
+                        <p class="mt-1">{{ $t('admin.accounts.oauth.gemini.stateWarningDesc') }}</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Error Message -->
+                <div
+                  v-if="error"
+                  class="mt-3 rounded-lg border border-red-200 bg-red-50 p-3 dark:border-red-700 dark:bg-red-900/30"
+                >
+                  <p class="whitespace-pre-line text-sm text-red-600 dark:text-red-400">
+                    {{ error }}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script setup lang="ts">
+import { ref, computed, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
+import { useClipboard } from '@/composables/useClipboard'
+import Icon from '@/components/icons/Icon.vue'
+import type { AddMethod, AuthInputMethod } from '@/composables/useAccountOAuth'
+import type { AccountPlatform } from '@/types'
+
+interface Props {
+  addMethod: AddMethod
+  authUrl?: string
+  sessionId?: string
+  loading?: boolean
+  error?: string
+  showHelp?: boolean
+  showProxyWarning?: boolean
+  allowMultiple?: boolean
+  methodLabel?: string
+  showCookieOption?: boolean // Whether to show cookie auto-auth option
+  showRefreshTokenOption?: boolean // Whether to show refresh token input option (OpenAI only)
+  showMobileRefreshTokenOption?: boolean // Whether to show mobile refresh token option (OpenAI only)
+  showSessionTokenOption?: boolean
+  showAccessTokenOption?: boolean
+  showCodexSessionImportOption?: boolean
+  platform?: AccountPlatform // Platform type for different UI/text
+  showProjectId?: boolean // New prop to control project ID visibility
+}
+
+const props = withDefaults(defineProps<Props>(), {
+  authUrl: '',
+  sessionId: '',
+  loading: false,
+  error: '',
+  showHelp: true,
+  showProxyWarning: true,
+  allowMultiple: false,
+  methodLabel: 'Authorization Method',
+  showCookieOption: true,
+  showRefreshTokenOption: false,
+  showMobileRefreshTokenOption: false,
+  showSessionTokenOption: false,
+  showAccessTokenOption: false,
+  showCodexSessionImportOption: false,
+  platform: 'anthropic',
+  showProjectId: true
+})
+
+const emit = defineEmits<{
+  'generate-url': []
+  'exchange-code': [code: string]
+  'cookie-auth': [sessionKey: string]
+  'validate-refresh-token': [refreshToken: string]
+  'validate-mobile-refresh-token': [refreshToken: string]
+  'validate-session-token': [sessionToken: string]
+  'import-access-token': [accessToken: string]
+  'import-codex-session': [content: string]
+  'update:inputMethod': [method: AuthInputMethod]
+}>()
+
+const { t } = useI18n()
+
+const isOpenAI = computed(() => props.platform === 'openai')
+
+// Get translation key based on platform
+const getOAuthKey = (key: string) => {
+  if (props.platform === 'openai') return `admin.accounts.oauth.openai.${key}`
+  if (props.platform === 'gemini') return `admin.accounts.oauth.gemini.${key}`
+  if (props.platform === 'antigravity') return `admin.accounts.oauth.antigravity.${key}`
+  return `admin.accounts.oauth.${key}`
+}
+
+// Computed translations for current platform
+const oauthTitle = computed(() => t(getOAuthKey('title')))
+const oauthFollowSteps = computed(() => t(getOAuthKey('followSteps')))
+const oauthStep1GenerateUrl = computed(() => t(getOAuthKey('step1GenerateUrl')))
+const oauthGenerateAuthUrl = computed(() => t(getOAuthKey('generateAuthUrl')))
+const oauthStep2OpenUrl = computed(() => t(getOAuthKey('step2OpenUrl')))
+const oauthOpenUrlDesc = computed(() => t(getOAuthKey('openUrlDesc')))
+const oauthStep3EnterCode = computed(() => t(getOAuthKey('step3EnterCode')))
+const oauthAuthCodeDesc = computed(() => t(getOAuthKey('authCodeDesc')))
+const oauthAuthCode = computed(() => t(getOAuthKey('authCode')))
+const oauthAuthCodePlaceholder = computed(() => t(getOAuthKey('authCodePlaceholder')))
+const oauthAuthCodeHint = computed(() => t(getOAuthKey('authCodeHint')))
+const oauthImportantNotice = computed(() => {
+  if (props.platform === 'openai') return t('admin.accounts.oauth.openai.importantNotice')
+  if (props.platform === 'antigravity') return t('admin.accounts.oauth.antigravity.importantNotice')
+  return ''
+})
+
+// Local state
+const preferredInputMethod = () => {
+  if (props.platform === 'openai' && props.showCodexSessionImportOption) return 'codex_session'
+  return 'manual'
+}
+
+const inputMethod = ref<AuthInputMethod>(preferredInputMethod())
+const authCodeInput = ref('')
+const sessionKeyInput = ref('')
+const refreshTokenInput = ref('')
+const sessionTokenInput = ref('')
+const codexSessionInput = ref('')
+const showHelpDialog = ref(false)
+const oauthState = ref('')
+const projectId = ref('')
+
+// Computed: show method selection when either cookie or refresh token option is enabled
+const showMethodSelection = computed(() => props.showCookieOption || props.showRefreshTokenOption || props.showMobileRefreshTokenOption || props.showSessionTokenOption || props.showAccessTokenOption || props.showCodexSessionImportOption)
+
+interface AuthMethodOption {
+  value: AuthInputMethod
+  label: string
+  description: string
+  recommended?: boolean
+}
+
+const authMethodOptions = computed<AuthMethodOption[]>(() => {
+  const options: AuthMethodOption[] = [
+    {
+      value: 'manual',
+      label: t('admin.accounts.oauth.manualAuth'),
+      description: t('admin.accounts.oauth.methodDescriptions.manual')
+    }
+  ]
+
+  if (props.showCookieOption) {
+    options.push({
+      value: 'cookie',
+      label: t('admin.accounts.oauth.cookieAutoAuth'),
+      description: t('admin.accounts.oauth.methodDescriptions.cookie')
+    })
+  }
+
+  if (props.showRefreshTokenOption) {
+    options.push({
+      value: 'refresh_token',
+      label: t(getOAuthKey('refreshTokenAuth')),
+      description: t('admin.accounts.oauth.methodDescriptions.refreshToken')
+    })
+  }
+
+  if (props.showMobileRefreshTokenOption) {
+    options.push({
+      value: 'mobile_refresh_token',
+      label: t('admin.accounts.oauth.openai.mobileRefreshTokenAuth', '手动输入 Mobile RT'),
+      description: t('admin.accounts.oauth.methodDescriptions.mobileRefreshToken')
+    })
+  }
+
+  if (props.showSessionTokenOption) {
+    options.push({
+      value: 'session_token',
+      label: t(getOAuthKey('sessionTokenAuth')),
+      description: t('admin.accounts.oauth.methodDescriptions.sessionToken')
+    })
+  }
+
+  if (props.showAccessTokenOption) {
+    options.push({
+      value: 'access_token',
+      label: t('admin.accounts.oauth.openai.accessTokenAuth', '手动输入 AT'),
+      description: t('admin.accounts.oauth.methodDescriptions.accessToken')
+    })
+  }
+
+  if (props.showCodexSessionImportOption) {
+    options.push({
+      value: 'codex_session',
+      label: t('admin.accounts.oauth.openai.codexSessionAuth'),
+      description: t('admin.accounts.oauth.methodDescriptions.codexSession'),
+      recommended: props.platform === 'openai'
+    })
+  }
+
+  return options
+})
+
+// Clipboard
+const { copied, copyToClipboard } = useClipboard()
+
+// Computed
+const parsedKeyCount = computed(() => {
+  return sessionKeyInput.value
+    .split('\n')
+    .map((k) => k.trim())
+    .filter((k) => k).length
+})
+
+// Computed: count of refresh tokens entered
+const parsedRefreshTokenCount = computed(() => {
+  return refreshTokenInput.value
+    .split('\n')
+    .map((rt) => rt.trim())
+    .filter((rt) => rt).length
+})
+
+const parsedCodexSessionCount = computed(() => {
+  const trimmed = codexSessionInput.value.trim()
+  if (!trimmed) return 0
+  if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
+    try {
+      const parsed = JSON.parse(trimmed)
+      return Array.isArray(parsed) ? Math.max(parsed.length, 1) : 1
+    } catch {
+      // Fall back to line counting for one-token-per-line paste.
+    }
+  }
+  return trimmed
+    .split('\n')
+    .map((item) => item.trim())
+    .filter((item) => item).length
+})
+
+// Watchers
+watch(inputMethod, (newVal) => {
+  emit('update:inputMethod', newVal)
+})
+
+watch(
+  () => [props.platform, props.showCodexSessionImportOption] as const,
+  () => {
+    inputMethod.value = preferredInputMethod()
+  }
+)
+
+// Auto-extract code from callback URL (OpenAI/Gemini/Antigravity)
+// e.g., http://localhost:8085/callback?code=xxx...&state=...
+watch(authCodeInput, (newVal) => {
+  if (props.platform !== 'openai' && props.platform !== 'gemini' && props.platform !== 'antigravity') return
+
+  const trimmed = newVal.trim()
+  // Check if it looks like a URL with code parameter
+  if (trimmed.includes('?') && trimmed.includes('code=')) {
+    try {
+      // Try to parse as URL
+      const url = new URL(trimmed)
+      const code = url.searchParams.get('code')
+      const stateParam = url.searchParams.get('state')
+      if ((props.platform === 'openai' || props.platform === 'gemini' || props.platform === 'antigravity') && stateParam) {
+        oauthState.value = stateParam
+      }
+      if (code && code !== trimmed) {
+        // Replace the input with just the code
+        authCodeInput.value = code
+      }
+    } catch {
+      // If URL parsing fails, try regex extraction
+      const match = trimmed.match(/[?&]code=([^&]+)/)
+      const stateMatch = trimmed.match(/[?&]state=([^&]+)/)
+      if ((props.platform === 'openai' || props.platform === 'gemini' || props.platform === 'antigravity') && stateMatch && stateMatch[1]) {
+        oauthState.value = stateMatch[1]
+      }
+      if (match && match[1] && match[1] !== trimmed) {
+        authCodeInput.value = match[1]
+      }
+    }
+  }
+})
+
+// Methods
+const handleGenerateUrl = () => {
+  emit('generate-url')
+}
+
+const handleCopyUrl = () => {
+  if (props.authUrl) {
+    copyToClipboard(props.authUrl, 'URL copied to clipboard')
+  }
+}
+
+const handleRegenerate = () => {
+  authCodeInput.value = ''
+  emit('generate-url')
+}
+
+const handleCookieAuth = () => {
+  if (sessionKeyInput.value.trim()) {
+    emit('cookie-auth', sessionKeyInput.value)
+  }
+}
+
+const handleValidateRefreshToken = () => {
+  if (refreshTokenInput.value.trim()) {
+    if (inputMethod.value === 'mobile_refresh_token') {
+      emit('validate-mobile-refresh-token', refreshTokenInput.value.trim())
+    } else {
+      emit('validate-refresh-token', refreshTokenInput.value.trim())
+    }
+  }
+}
+
+const handleImportCodexSession = () => {
+  if (codexSessionInput.value.trim()) {
+    emit('import-codex-session', codexSessionInput.value.trim())
+  }
+}
+
+// Expose methods and state
+defineExpose({
+  authCode: authCodeInput,
+  oauthState,
+  projectId,
+  sessionKey: sessionKeyInput,
+  refreshToken: refreshTokenInput,
+  sessionToken: sessionTokenInput,
+  codexSession: codexSessionInput,
+  inputMethod,
+  reset: () => {
+    authCodeInput.value = ''
+    oauthState.value = ''
+    projectId.value = ''
+    sessionKeyInput.value = ''
+    refreshTokenInput.value = ''
+    sessionTokenInput.value = ''
+    codexSessionInput.value = ''
+    inputMethod.value = preferredInputMethod()
+    showHelpDialog.value = false
+  }
+})
+</script>
+
+<style scoped>
+.openai-auth-guide {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.6rem;
+  margin-bottom: 1rem;
+  border-radius: 1rem;
+  padding: 0.7rem;
+  border: 1px solid rgba(0, 137, 78, 0.14);
+  background: linear-gradient(135deg, rgba(239, 250, 242, 0.92), rgba(255, 252, 241, 0.88));
+}
+
+.openai-auth-guide__item {
+  display: flex;
+  gap: 0.55rem;
+  align-items: flex-start;
+  border-radius: 0.8rem;
+  padding: 0.65rem;
+  background: rgba(255, 255, 255, 0.7);
+}
+
+.openai-auth-guide__item span {
+  flex: 0 0 auto;
+  display: inline-flex;
+  width: 1.55rem;
+  height: 1.55rem;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: #00894e;
+  color: white;
+  font-size: 0.68rem;
+  font-weight: 800;
+}
+
+.openai-auth-guide__item p {
+  margin: 0;
+  color: rgba(3, 47, 28, 0.72);
+  font-size: 0.78rem;
+  line-height: 1.5;
+}
+
+.auth-method-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.65rem;
+}
+
+.auth-method-card {
+  display: flex;
+  width: 100%;
+  min-height: 5rem;
+  gap: 0.65rem;
+  align-items: flex-start;
+  border-radius: 0.95rem;
+  padding: 0.75rem;
+  border: 1px solid rgba(2, 43, 18, 0.1);
+  background: rgba(255, 255, 255, 0.72);
+  text-align: left;
+  transition:
+    border-color 180ms ease,
+    background-color 180ms ease,
+    box-shadow 180ms ease,
+    transform 180ms ease;
+}
+
+.auth-method-card:hover {
+  transform: translateY(-1px);
+  border-color: rgba(0, 137, 78, 0.28);
+  box-shadow: 0 10px 24px rgba(2, 43, 18, 0.08);
+}
+
+.auth-method-card--active {
+  border-color: rgba(0, 137, 78, 0.42);
+  background: rgba(239, 250, 242, 0.9);
+  box-shadow: 0 12px 28px rgba(0, 137, 78, 0.12);
+}
+
+.auth-method-card__radio {
+  flex: 0 0 auto;
+  display: inline-flex;
+  width: 1.05rem;
+  height: 1.05rem;
+  align-items: center;
+  justify-content: center;
+  margin-top: 0.1rem;
+  border-radius: 999px;
+  border: 1px solid rgba(0, 137, 78, 0.45);
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.auth-method-card__radio span {
+  width: 0.55rem;
+  height: 0.55rem;
+  border-radius: inherit;
+  background: #00894e;
+}
+
+.auth-method-card__body {
+  display: grid;
+  gap: 0.24rem;
+  min-width: 0;
+}
+
+.auth-method-card__title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+  color: rgba(3, 47, 28, 0.88);
+  font-size: 0.9rem;
+  font-weight: 750;
+}
+
+.auth-method-card__desc {
+  color: rgba(3, 47, 28, 0.58);
+  font-size: 0.78rem;
+  line-height: 1.45;
+}
+
+.auth-method-card__badge {
+  border-radius: 999px;
+  padding: 0.15rem 0.42rem;
+  background: rgba(238, 195, 73, 0.22);
+  color: #7a5708;
+  font-size: 0.66rem;
+  font-weight: 800;
+}
+
+.codex-import-accepts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  margin-bottom: 0.85rem;
+}
+
+.codex-import-accepts span {
+  border-radius: 999px;
+  padding: 0.32rem 0.58rem;
+  background: rgba(0, 137, 78, 0.09);
+  color: #006d3f;
+  font-size: 0.74rem;
+  font-weight: 700;
+}
+
+.codex-import-notes {
+  display: grid;
+  gap: 0.42rem;
+  margin-bottom: 1rem;
+  border-radius: 0.9rem;
+  padding: 0.75rem;
+  border: 1px solid rgba(0, 137, 78, 0.12);
+  background: rgba(239, 250, 242, 0.72);
+}
+
+.codex-import-notes p {
+  margin: 0;
+  color: rgba(3, 47, 28, 0.68);
+  font-size: 0.78rem;
+  line-height: 1.45;
+}
+
+:global(.dark) .openai-auth-guide,
+:global(.dark) .codex-import-notes {
+  border-color: rgba(255, 255, 255, 0.1);
+  background: linear-gradient(135deg, rgba(0, 137, 78, 0.13), rgba(238, 195, 73, 0.08));
+}
+
+:global(.dark) .openai-auth-guide__item,
+:global(.dark) .auth-method-card {
+  border-color: rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.07);
+}
+
+:global(.dark) .auth-method-card--active {
+  border-color: rgba(72, 187, 120, 0.5);
+  background: rgba(0, 137, 78, 0.16);
+}
+
+:global(.dark) .openai-auth-guide__item p,
+:global(.dark) .auth-method-card__desc,
+:global(.dark) .codex-import-notes p {
+  color: rgba(255, 255, 255, 0.66);
+}
+
+:global(.dark) .auth-method-card__title {
+  color: rgba(255, 255, 255, 0.9);
+}
+
+:global(.dark) .codex-import-accepts span {
+  background: rgba(0, 137, 78, 0.22);
+  color: rgba(193, 245, 215, 0.92);
+}
+
+:global(.dark) .auth-method-card__badge {
+  background: rgba(238, 195, 73, 0.16);
+  color: #f0d98a;
+}
+
+@media (max-width: 760px) {
+  .openai-auth-guide,
+  .auth-method-grid {
+    grid-template-columns: 1fr;
+  }
+}
+</style>

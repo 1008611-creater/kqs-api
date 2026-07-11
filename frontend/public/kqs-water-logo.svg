@@ -1,0 +1,101 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
+  <title id="title">KQS water bottle logo</title>
+  <desc id="desc">A transparent-background mineral water bottle logo for KQS API.</desc>
+  <defs>
+    <linearGradient id="bottleGlass" x1="138" y1="58" x2="386" y2="459" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#eafaff"/>
+      <stop offset="0.34" stop-color="#c8effb"/>
+      <stop offset="0.68" stop-color="#74cbe7"/>
+      <stop offset="1" stop-color="#2395bd"/>
+    </linearGradient>
+    <linearGradient id="innerWater" x1="156" y1="238" x2="358" y2="447" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#83e3ff"/>
+      <stop offset="0.45" stop-color="#2bbbe5"/>
+      <stop offset="1" stop-color="#077aa6"/>
+    </linearGradient>
+    <linearGradient id="capGradient" x1="206" y1="54" x2="306" y2="109" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#0fb5d7"/>
+      <stop offset="1" stop-color="#006c9d"/>
+    </linearGradient>
+    <linearGradient id="labelGradient" x1="151" y1="239" x2="361" y2="318" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#ffffff"/>
+      <stop offset="0.48" stop-color="#f7feff"/>
+      <stop offset="1" stop-color="#d9f5ff"/>
+    </linearGradient>
+    <filter id="softShadow" x="-35%" y="-20%" width="170%" height="150%" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="18" stdDeviation="18" flood-color="#005a78" flood-opacity="0.22"/>
+    </filter>
+  </defs>
+
+  <g filter="url(#softShadow)">
+    <path
+      d="M220 80h72v46c0 23 13 37 31 58 21 25 38 58 38 118v120c0 34-28 62-62 62h-86c-34 0-62-28-62-62V302c0-60 17-93 38-118 18-21 31-35 31-58V80Z"
+      fill="url(#bottleGlass)"
+    />
+    <path
+      d="M210 80c0-15 12-27 27-27h38c15 0 27 12 27 27v22h-92V80Z"
+      fill="url(#capGradient)"
+    />
+    <path
+      d="M207 100h98v26c0 8-7 15-15 15h-68c-8 0-15-7-15-15v-26Z"
+      fill="#def8ff"
+      opacity="0.75"
+    />
+    <path
+      d="M174 352c35 16 68 16 99 0 31-16 56-16 65-8v82c0 22-18 40-40 40h-84c-22 0-40-18-40-40v-74Z"
+      fill="url(#innerWater)"
+      opacity="0.92"
+    />
+    <path
+      d="M169 236c54-17 113-17 174 0 12 3 20 14 20 26v45c0 12-8 22-20 26-61 17-120 17-174 0-12-4-20-14-20-26v-45c0-12 8-23 20-26Z"
+      fill="url(#labelGradient)"
+    />
+    <path
+      d="M174 247c52-15 106-15 164 0 6 2 10 7 10 13v2c-62-16-119-16-184 0v-2c0-6 4-11 10-13Z"
+      fill="#7bd9ef"
+      opacity="0.58"
+    />
+    <path
+      d="M168 320c56 17 115 17 176 0"
+      fill="none"
+      stroke="#8bdff1"
+      stroke-width="8"
+      stroke-linecap="round"
+      opacity="0.65"
+    />
+    <text
+      x="256"
+      y="295"
+      text-anchor="middle"
+      font-family="Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif"
+      font-size="64"
+      font-weight="850"
+      letter-spacing="6"
+      fill="#076b95"
+    >KQS</text>
+    <path
+      d="M205 158c-24 30-35 65-35 130v128c0 15 4 27 13 36"
+      fill="none"
+      stroke="#ffffff"
+      stroke-width="16"
+      stroke-linecap="round"
+      opacity="0.46"
+    />
+    <path
+      d="M293 154c28 34 43 70 43 137v119"
+      fill="none"
+      stroke="#005f86"
+      stroke-width="9"
+      stroke-linecap="round"
+      opacity="0.15"
+    />
+    <path
+      d="M217 69h78"
+      fill="none"
+      stroke="#ffffff"
+      stroke-width="8"
+      stroke-linecap="round"
+      opacity="0.45"
+    />
+  </g>
+</svg>

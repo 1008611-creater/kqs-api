@@ -1,0 +1,9 @@
+name = "sub2api-proxy"
+main = "src/index.js"
+compatibility_date = "2026-05-23"
+account_id = "3b78db8f07bf8738064ca1606fe89cb5"
+workers_dev = true
+
+routes = [
+  { pattern = "api.cauai.fun/*", zone_name = "cauai.fun" }
+]
