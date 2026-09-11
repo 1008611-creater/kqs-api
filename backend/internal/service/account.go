@@ -104,6 +104,23 @@ func (a *Account) EffectiveLoadFactor() int {
 	return 1
 }
 
+// EffectivePriority returns the account priority within the requested group.
+// Group bindings override the global account priority for group-scoped routing.
+func (a *Account) EffectivePriority(groupID *int64) int {
+	if a == nil {
+		return 0
+	}
+	if groupID != nil {
+		for i := range a.AccountGroups {
+			binding := &a.AccountGroups[i]
+			if binding.GroupID == *groupID {
+				return binding.Priority
+			}
+		}
+	}
+	return a.Priority
+}
+
 func (a *Account) IsSchedulable() bool {
 	if !a.IsActive() || !a.Schedulable {
 		return false
@@ -1003,6 +1020,9 @@ func (a *Account) GetOpenAIBaseURL() string {
 	if a.Type == AccountTypeAPIKey {
 		baseURL := a.GetCredential("base_url")
 		if baseURL != "" {
+			if a.getExtraBool("openai_base_url_without_v1") {
+				return appendOpenAIBaseURLNoV1Marker(baseURL)
+			}
 			return baseURL
 		}
 	}

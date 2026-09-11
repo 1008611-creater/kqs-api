@@ -27,6 +27,11 @@ const (
 const (
 	openAIAdvancedSchedulerSettingCacheTTL  = 5 * time.Second
 	openAIAdvancedSchedulerSettingDBTimeout = 2 * time.Second
+	openAIAccountFailureCooldown            = 15 * time.Second
+	openAIAccountFailureCooldownThreshold   = 2
+	openAIScheduledTestTelemetryCacheTTL    = 30 * time.Second
+	openAIScheduledTestTelemetryDBTimeout   = 500 * time.Millisecond
+	openAIScheduledTestTelemetryMinSamples  = 2
 )
 
 type cachedOpenAIAdvancedSchedulerSetting struct {
@@ -136,6 +141,8 @@ type openAIAccountRuntimeStats struct {
 type openAIAccountRuntimeStat struct {
 	errorRateEWMABits atomic.Uint64
 	ttftEWMABits      atomic.Uint64
+	consecutiveErrors atomic.Int64
+	cooldownUntilUnix atomic.Int64
 }
 
 func newOpenAIAccountRuntimeStats() *openAIAccountRuntimeStats {
@@ -185,6 +192,10 @@ func (s *openAIAccountRuntimeStats) report(accountID int64, success bool, firstT
 	errorSample := 1.0
 	if success {
 		errorSample = 0.0
+		stat.consecutiveErrors.Store(0)
+		stat.cooldownUntilUnix.Store(0)
+	} else if stat.consecutiveErrors.Add(1) >= openAIAccountFailureCooldownThreshold {
+		stat.cooldownUntilUnix.Store(time.Now().Add(openAIAccountFailureCooldown).UnixNano())
 	}
 	updateEWMAAtomic(&stat.errorRateEWMABits, errorSample, alpha)
 
@@ -206,6 +217,22 @@ func (s *openAIAccountRuntimeStats) report(accountID int64, success bool, firstT
 			}
 		}
 	}
+}
+
+func (s *openAIAccountRuntimeStats) isCoolingDown(accountID int64) bool {
+	if s == nil || accountID <= 0 {
+		return false
+	}
+	value, ok := s.accounts.Load(accountID)
+	if !ok {
+		return false
+	}
+	stat, _ := value.(*openAIAccountRuntimeStat)
+	if stat == nil {
+		return false
+	}
+	until := stat.cooldownUntilUnix.Load()
+	return until > 0 && time.Now().UnixNano() < until
 }
 
 func (s *openAIAccountRuntimeStats) snapshot(accountID int64) (errorRate float64, ttft float64, hasTTFT bool) {
@@ -239,6 +266,12 @@ type defaultOpenAIAccountScheduler struct {
 	service *OpenAIGatewayService
 	metrics openAIAccountSchedulerMetrics
 	stats   *openAIAccountRuntimeStats
+
+	// fairCursorByGroup keeps a process-local round-robin cursor for groups
+	// whose effective account priorities are equal. Health, capacity, and
+	// compatibility checks still decide whether the chosen account can be used.
+	fairCursorMu      sync.Mutex
+	fairCursorByGroup map[int64]uint64
 }
 
 func newDefaultOpenAIAccountScheduler(service *OpenAIGatewayService, stats *openAIAccountRuntimeStats) OpenAIAccountScheduler {
@@ -246,8 +279,9 @@ func newDefaultOpenAIAccountScheduler(service *OpenAIGatewayService, stats *open
 		stats = newOpenAIAccountRuntimeStats()
 	}
 	return &defaultOpenAIAccountScheduler{
-		service: service,
-		stats:   stats,
+		service:           service,
+		stats:             stats,
+		fairCursorByGroup: make(map[int64]uint64),
 	}
 }
 
@@ -368,6 +402,10 @@ func (s *defaultOpenAIAccountScheduler) selectBySessionHash(
 	if !s.isAccountRequestCompatible(ctx, account, req) {
 		return nil, nil
 	}
+	if s.stats != nil && s.stats.isCoolingDown(account.ID) {
+		_ = s.service.deleteStickySessionAccountID(ctx, req.GroupID, sessionHash)
+		return nil, nil
+	}
 	if !s.isAccountTransportCompatible(account, req.RequiredTransport) {
 		_ = s.service.deleteStickySessionAccountID(ctx, req.GroupID, sessionHash)
 		return nil, nil
@@ -388,29 +426,85 @@ func (s *defaultOpenAIAccountScheduler) selectBySessionHash(
 		}, nil
 	}
 
-	cfg := s.service.schedulingConfig()
-	// WaitPlan.MaxConcurrency 使用 Concurrency（非 EffectiveLoadFactor），因为 WaitPlan 控制的是 Redis 实际并发槽位等待。
-	if s.service.concurrencyService != nil {
-		return &AccountSelectionResult{
-			Account: account,
-			WaitPlan: &AccountWaitPlan{
-				AccountID:      accountID,
-				MaxConcurrency: account.Concurrency,
-				Timeout:        cfg.StickySessionWaitTimeout,
-				MaxWaiting:     cfg.StickySessionMaxWaiting,
-			},
-		}, nil
-	}
+	// A full sticky account must not turn a multi-channel group into a queue.
+	// Drop the affinity and let the normal selection path take an immediately
+	// available compatible account; it will bind the session to that account.
+	_ = s.service.deleteStickySessionAccountID(ctx, req.GroupID, sessionHash)
 	return nil, nil
 }
 
 type openAIAccountCandidateScore struct {
-	account   *Account
-	loadInfo  *AccountLoadInfo
-	score     float64
-	errorRate float64
-	ttft      float64
-	hasTTFT   bool
+	account           *Account
+	loadInfo          *AccountLoadInfo
+	effectivePriority int
+	score             float64
+	errorRate         float64
+	ttft              float64
+	hasTTFT           bool
+	telemetry         ScheduledTestAccountTelemetry
+	hasTelemetry      bool
+}
+
+type scheduledTestTelemetryCacheEntry struct {
+	data      map[int64]ScheduledTestAccountTelemetry
+	expiresAt time.Time
+}
+
+// recentOpenAIAccountTelemetry gives the first request after a restart a
+// bounded hint from the existing scheduled probes. Runtime request results
+// remain the stronger, real-time signal once traffic resumes.
+func (s *OpenAIGatewayService) recentOpenAIAccountTelemetry(
+	ctx context.Context,
+	accounts []*Account,
+) map[int64]ScheduledTestAccountTelemetry {
+	if s == nil || s.scheduledTestResultRepo == nil || len(accounts) == 0 {
+		return nil
+	}
+
+	ids := make([]int64, 0, len(accounts))
+	for _, account := range accounts {
+		if account != nil && account.ID > 0 {
+			ids = append(ids, account.ID)
+		}
+	}
+	if len(ids) == 0 {
+		return nil
+	}
+	sort.Slice(ids, func(i, j int) bool { return ids[i] < ids[j] })
+	keyParts := make([]string, len(ids))
+	for i, id := range ids {
+		keyParts[i] = strconv.FormatInt(id, 10)
+	}
+	cacheKey := strings.Join(keyParts, ",")
+
+	now := time.Now()
+	s.scheduledTestTelemetryMu.Lock()
+	if cached, ok := s.scheduledTestTelemetryCache[cacheKey]; ok && now.Before(cached.expiresAt) {
+		s.scheduledTestTelemetryMu.Unlock()
+		return cached.data
+	}
+	s.scheduledTestTelemetryMu.Unlock()
+
+	queryCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), openAIScheduledTestTelemetryDBTimeout)
+	defer cancel()
+	data, err := s.scheduledTestResultRepo.GetRecentAccountTelemetry(queryCtx, ids, now)
+	if err != nil {
+		return nil
+	}
+	if data == nil {
+		data = make(map[int64]ScheduledTestAccountTelemetry)
+	}
+
+	s.scheduledTestTelemetryMu.Lock()
+	if s.scheduledTestTelemetryCache == nil {
+		s.scheduledTestTelemetryCache = make(map[string]scheduledTestTelemetryCacheEntry)
+	}
+	s.scheduledTestTelemetryCache[cacheKey] = scheduledTestTelemetryCacheEntry{
+		data:      data,
+		expiresAt: now.Add(openAIScheduledTestTelemetryCacheTTL),
+	}
+	s.scheduledTestTelemetryMu.Unlock()
+	return data
 }
 
 type openAIAccountCandidateHeap []openAIAccountCandidateScore
@@ -448,8 +542,8 @@ func isOpenAIAccountCandidateBetter(left openAIAccountCandidateScore, right open
 	if left.score != right.score {
 		return left.score > right.score
 	}
-	if left.account.Priority != right.account.Priority {
-		return left.account.Priority < right.account.Priority
+	if left.effectivePriority != right.effectivePriority {
+		return left.effectivePriority < right.effectivePriority
 	}
 	if left.loadInfo.LoadRate != right.loadInfo.LoadRate {
 		return left.loadInfo.LoadRate < right.loadInfo.LoadRate
@@ -610,6 +704,10 @@ func (s *defaultOpenAIAccountScheduler) buildOpenAIAccountLoadPlan(
 	filtered []*Account,
 	loadMap map[int64]*AccountLoadInfo,
 ) openAIAccountLoadPlan {
+	var telemetry map[int64]ScheduledTestAccountTelemetry
+	if s != nil && s.service != nil {
+		telemetry = s.service.recentOpenAIAccountTelemetry(context.Background(), filtered)
+	}
 	allCandidates := make([]openAIAccountCandidateScore, 0, len(filtered))
 	for _, account := range filtered {
 		loadInfo := loadMap[account.ID]
@@ -620,12 +718,19 @@ func (s *defaultOpenAIAccountScheduler) buildOpenAIAccountLoadPlan(
 		if s.stats != nil {
 			errorRate, ttft, hasTTFT = s.stats.snapshot(account.ID)
 		}
+		probe, hasProbe := telemetry[account.ID]
+		if !hasProbe || probe.SampleCount < openAIScheduledTestTelemetryMinSamples || probe.LastCheckedAt.Before(time.Now().Add(-10*time.Minute)) {
+			hasProbe = false
+		}
 		allCandidates = append(allCandidates, openAIAccountCandidateScore{
-			account:   account,
-			loadInfo:  loadInfo,
-			errorRate: errorRate,
-			ttft:      ttft,
-			hasTTFT:   hasTTFT,
+			account:           account,
+			loadInfo:          loadInfo,
+			effectivePriority: account.EffectivePriority(req.GroupID),
+			errorRate:         errorRate,
+			ttft:              ttft,
+			hasTTFT:           hasTTFT,
+			telemetry:         probe,
+			hasTelemetry:      hasProbe,
 		})
 	}
 
@@ -653,18 +758,20 @@ func (s *defaultOpenAIAccountScheduler) buildOpenAIAccountLoadPlan(
 		return plan
 	}
 
-	minPriority, maxPriority := candidates[0].account.Priority, candidates[0].account.Priority
+	minPriority, maxPriority := candidates[0].effectivePriority, candidates[0].effectivePriority
 	maxWaiting := 1
 	loadRateSum := 0.0
 	loadRateSumSquares := 0.0
 	minTTFT, maxTTFT := 0.0, 0.0
 	hasTTFTSample := false
+	minProbeLatency, maxProbeLatency := 0.0, 0.0
+	hasProbeLatencySample := false
 	for _, candidate := range candidates {
-		if candidate.account.Priority < minPriority {
-			minPriority = candidate.account.Priority
+		if candidate.effectivePriority < minPriority {
+			minPriority = candidate.effectivePriority
 		}
-		if candidate.account.Priority > maxPriority {
-			maxPriority = candidate.account.Priority
+		if candidate.effectivePriority > maxPriority {
+			maxPriority = candidate.effectivePriority
 		}
 		if candidate.loadInfo.WaitingCount > maxWaiting {
 			maxWaiting = candidate.loadInfo.WaitingCount
@@ -682,6 +789,19 @@ func (s *defaultOpenAIAccountScheduler) buildOpenAIAccountLoadPlan(
 				}
 			}
 		}
+		if candidate.hasTelemetry && candidate.telemetry.AverageLatencyMs > 0 {
+			if !hasProbeLatencySample {
+				minProbeLatency, maxProbeLatency = candidate.telemetry.AverageLatencyMs, candidate.telemetry.AverageLatencyMs
+				hasProbeLatencySample = true
+			} else {
+				if candidate.telemetry.AverageLatencyMs < minProbeLatency {
+					minProbeLatency = candidate.telemetry.AverageLatencyMs
+				}
+				if candidate.telemetry.AverageLatencyMs > maxProbeLatency {
+					maxProbeLatency = candidate.telemetry.AverageLatencyMs
+				}
+			}
+		}
 		loadRate := float64(candidate.loadInfo.LoadRate)
 		loadRateSum += loadRate
 		loadRateSumSquares += loadRate * loadRate
@@ -693,7 +813,7 @@ func (s *defaultOpenAIAccountScheduler) buildOpenAIAccountLoadPlan(
 		item := &candidates[i]
 		priorityFactor := 1.0
 		if maxPriority > minPriority {
-			priorityFactor = 1 - float64(item.account.Priority-minPriority)/float64(maxPriority-minPriority)
+			priorityFactor = 1 - float64(item.effectivePriority-minPriority)/float64(maxPriority-minPriority)
 		}
 		loadFactor := 1 - clamp01(float64(item.loadInfo.LoadRate)/100.0)
 		queueFactor := 1 - clamp01(float64(item.loadInfo.WaitingCount)/float64(maxWaiting))
@@ -702,12 +822,21 @@ func (s *defaultOpenAIAccountScheduler) buildOpenAIAccountLoadPlan(
 		if item.hasTTFT && hasTTFTSample && maxTTFT > minTTFT {
 			ttftFactor = 1 - clamp01((item.ttft-minTTFT)/(maxTTFT-minTTFT))
 		}
+		probeFactor := 0.5
+		if item.hasTelemetry {
+			latencyFactor := 0.5
+			if hasProbeLatencySample && maxProbeLatency > minProbeLatency && item.telemetry.AverageLatencyMs > 0 {
+				latencyFactor = 1 - clamp01((item.telemetry.AverageLatencyMs-minProbeLatency)/(maxProbeLatency-minProbeLatency))
+			}
+			probeFactor = 0.7*clamp01(item.telemetry.SuccessRate) + 0.3*latencyFactor
+		}
 
 		item.score = weights.Priority*priorityFactor +
 			weights.Load*loadFactor +
 			weights.Queue*queueFactor +
 			weights.ErrorRate*errorFactor +
-			weights.TTFT*ttftFactor
+			weights.TTFT*ttftFactor +
+			0.6*(probeFactor-0.5)
 	}
 	plan.candidates = candidates
 
@@ -731,12 +860,42 @@ func (s *defaultOpenAIAccountScheduler) buildOpenAISelectionOrder(
 		if len(pool) == 0 || plan.topK <= 0 {
 			return nil
 		}
+		if allOpenAICandidatePrioritiesEqual(pool) {
+			// Equal effective priority means the operator chose to treat these
+			// channels as peers. Do not let the score model quietly turn that
+			// choice back into a latency/load preference. The acquisition loop
+			// below still skips unavailable or full accounts and falls through
+			// to the remaining peers in the same request.
+			return s.buildOpenAIFairSelectionOrder(pool, req.GroupID)
+		}
 		groupTopK := plan.topK
 		if groupTopK > len(pool) {
 			groupTopK = len(pool)
 		}
 		ranked := selectTopKOpenAICandidates(pool, groupTopK)
-		return buildOpenAIWeightedSelectionOrder(ranked, req)
+		order := buildOpenAIWeightedSelectionOrder(ranked, req)
+		if len(ranked) == len(pool) {
+			return order
+		}
+
+		// topK only controls who gets the first attempt. Every compatible
+		// channel remains a same-request fallback, otherwise a large group can
+		// return an avoidable "no available account" while healthy channels sit
+		// just outside the preferred pool.
+		preferredIDs := make(map[int64]struct{}, len(ranked))
+		for _, candidate := range ranked {
+			preferredIDs[candidate.account.ID] = struct{}{}
+		}
+		fallback := make([]openAIAccountCandidateScore, 0, len(pool)-len(ranked))
+		for _, candidate := range pool {
+			if _, preferred := preferredIDs[candidate.account.ID]; !preferred {
+				fallback = append(fallback, candidate)
+			}
+		}
+		sort.Slice(fallback, func(i, j int) bool {
+			return isOpenAIAccountCandidateBetter(fallback[i], fallback[j])
+		})
+		return append(order, fallback...)
 	}
 
 	if req.RequireCompact {
@@ -762,6 +921,54 @@ func (s *defaultOpenAIAccountScheduler) buildOpenAISelectionOrder(
 	return buildSelectionOrder(plan.candidates)
 }
 
+func allOpenAICandidatePrioritiesEqual(pool []openAIAccountCandidateScore) bool {
+	if len(pool) < 2 {
+		return false
+	}
+	priority := pool[0].effectivePriority
+	// Zero is the legacy "not configured" value in existing fixtures and
+	// deployments. Only a positive, explicit priority opts into fair peers.
+	if priority <= 0 {
+		return false
+	}
+	for _, candidate := range pool[1:] {
+		if candidate.effectivePriority != priority {
+			return false
+		}
+	}
+	return true
+}
+
+func (s *defaultOpenAIAccountScheduler) buildOpenAIFairSelectionOrder(
+	pool []openAIAccountCandidateScore,
+	groupID *int64,
+) []openAIAccountCandidateScore {
+	ordered := append([]openAIAccountCandidateScore(nil), pool...)
+	sort.SliceStable(ordered, func(i, j int) bool {
+		return ordered[i].account.ID < ordered[j].account.ID
+	})
+	if len(ordered) < 2 {
+		return ordered
+	}
+
+	key := int64(0)
+	if groupID != nil {
+		key = *groupID
+	}
+	s.fairCursorMu.Lock()
+	if s.fairCursorByGroup == nil {
+		s.fairCursorByGroup = make(map[int64]uint64)
+	}
+	start := int(s.fairCursorByGroup[key] % uint64(len(ordered)))
+	s.fairCursorByGroup[key]++
+	s.fairCursorMu.Unlock()
+
+	rotated := make([]openAIAccountCandidateScore, 0, len(ordered))
+	rotated = append(rotated, ordered[start:]...)
+	rotated = append(rotated, ordered[:start]...)
+	return rotated
+}
+
 func sortOpenAICompactRetryCandidates(pool []openAIAccountCandidateScore) []openAIAccountCandidateScore {
 	if len(pool) == 0 {
 		return nil
@@ -769,8 +976,8 @@ func sortOpenAICompactRetryCandidates(pool []openAIAccountCandidateScore) []open
 	ordered := append([]openAIAccountCandidateScore(nil), pool...)
 	sort.SliceStable(ordered, func(i, j int) bool {
 		a, b := ordered[i], ordered[j]
-		if a.account.Priority != b.account.Priority {
-			return a.account.Priority < b.account.Priority
+		if a.effectivePriority != b.effectivePriority {
+			return a.effectivePriority < b.effectivePriority
 		}
 		if a.loadInfo.LoadRate != b.loadInfo.LoadRate {
 			return a.loadInfo.LoadRate < b.loadInfo.LoadRate
@@ -861,6 +1068,9 @@ func (s *defaultOpenAIAccountScheduler) selectByLoadBalance(
 			continue
 		}
 		if s.service.isOpenAIAccountRuntimeBlocked(account) {
+			continue
+		}
+		if s.stats != nil && s.stats.isCoolingDown(account.ID) {
 			continue
 		}
 		// require_privacy_set: 跳过 privacy 未设置的账号并标记异常

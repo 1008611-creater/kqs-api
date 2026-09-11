@@ -346,29 +346,30 @@ var ErrOpenAIClientDisconnected = errors.New("stream usage incomplete: openai cl
 
 // OpenAIGatewayService handles OpenAI API gateway operations
 type OpenAIGatewayService struct {
-	accountRepo           AccountRepository
-	usageLogRepo          UsageLogRepository
-	usageBillingRepo      UsageBillingRepository
-	userRepo              UserRepository
-	userSubRepo           UserSubscriptionRepository
-	cache                 GatewayCache
-	cfg                   *config.Config
-	codexDetector         CodexClientRestrictionDetector
-	schedulerSnapshot     *SchedulerSnapshotService
-	concurrencyService    *ConcurrencyService
-	billingService        *BillingService
-	rateLimitService      *RateLimitService
-	billingCacheService   *BillingCacheService
-	userGroupRateResolver *userGroupRateResolver
-	httpUpstream          HTTPUpstream
-	deferredService       *DeferredService
-	openAITokenProvider   *OpenAITokenProvider
-	toolCorrector         *CodexToolCorrector
-	openaiWSResolver      OpenAIWSProtocolResolver
-	resolver              *ModelPricingResolver
-	channelService        *ChannelService
-	balanceNotifyService  *BalanceNotifyService
-	settingService        *SettingService
+	accountRepo             AccountRepository
+	usageLogRepo            UsageLogRepository
+	usageBillingRepo        UsageBillingRepository
+	userRepo                UserRepository
+	userSubRepo             UserSubscriptionRepository
+	cache                   GatewayCache
+	cfg                     *config.Config
+	codexDetector           CodexClientRestrictionDetector
+	schedulerSnapshot       *SchedulerSnapshotService
+	concurrencyService      *ConcurrencyService
+	billingService          *BillingService
+	rateLimitService        *RateLimitService
+	billingCacheService     *BillingCacheService
+	userGroupRateResolver   *userGroupRateResolver
+	httpUpstream            HTTPUpstream
+	deferredService         *DeferredService
+	openAITokenProvider     *OpenAITokenProvider
+	toolCorrector           *CodexToolCorrector
+	openaiWSResolver        OpenAIWSProtocolResolver
+	resolver                *ModelPricingResolver
+	channelService          *ChannelService
+	balanceNotifyService    *BalanceNotifyService
+	settingService          *SettingService
+	scheduledTestResultRepo ScheduledTestResultRepository
 
 	openaiWSPoolOnce              sync.Once
 	openaiWSStateStoreOnce        sync.Once
@@ -379,6 +380,8 @@ type OpenAIGatewayService struct {
 	openaiScheduler               OpenAIAccountScheduler
 	openaiWSPassthroughDialer     openAIWSClientDialer
 	openaiAccountStats            *openAIAccountRuntimeStats
+	scheduledTestTelemetryMu      sync.Mutex
+	scheduledTestTelemetryCache   map[string]scheduledTestTelemetryCacheEntry
 
 	openaiWSFallbackUntil               sync.Map // key: int64(accountID), value: time.Time
 	openaiAccountRuntimeBlockUntil      sync.Map // key: int64(accountID), value: time.Time
@@ -413,6 +416,7 @@ func NewOpenAIGatewayService(
 	channelService *ChannelService,
 	balanceNotifyService *BalanceNotifyService,
 	settingService *SettingService,
+	scheduledTestResultRepo ScheduledTestResultRepository,
 ) *OpenAIGatewayService {
 	svc := &OpenAIGatewayService{
 		accountRepo:         accountRepo,
@@ -435,17 +439,19 @@ func NewOpenAIGatewayService(
 			nil,
 			"service.openai_gateway",
 		),
-		httpUpstream:          httpUpstream,
-		deferredService:       deferredService,
-		openAITokenProvider:   openAITokenProvider,
-		toolCorrector:         NewCodexToolCorrector(),
-		openaiWSResolver:      NewOpenAIWSProtocolResolver(cfg),
-		resolver:              resolver,
-		channelService:        channelService,
-		balanceNotifyService:  balanceNotifyService,
-		settingService:        settingService,
-		responseHeaderFilter:  compileResponseHeaderFilter(cfg),
-		codexSnapshotThrottle: newAccountWriteThrottle(openAICodexSnapshotPersistMinInterval),
+		httpUpstream:                httpUpstream,
+		deferredService:             deferredService,
+		openAITokenProvider:         openAITokenProvider,
+		toolCorrector:               NewCodexToolCorrector(),
+		openaiWSResolver:            NewOpenAIWSProtocolResolver(cfg),
+		resolver:                    resolver,
+		channelService:              channelService,
+		balanceNotifyService:        balanceNotifyService,
+		settingService:              settingService,
+		scheduledTestResultRepo:     scheduledTestResultRepo,
+		scheduledTestTelemetryCache: make(map[string]scheduledTestTelemetryCacheEntry),
+		responseHeaderFilter:        compileResponseHeaderFilter(cfg),
+		codexSnapshotThrottle:       newAccountWriteThrottle(openAICodexSnapshotPersistMinInterval),
 	}
 	if rateLimitService != nil {
 		rateLimitService.SetAccountRuntimeBlocker(svc)
@@ -1513,6 +1519,7 @@ func (s *OpenAIGatewayService) tryStickySessionHit(ctx context.Context, groupID 
 // (only meaningful when requireCompact=true).
 func (s *OpenAIGatewayService) selectBestAccount(ctx context.Context, groupID *int64, accounts []Account, requestedModel string, excludedIDs map[int64]struct{}, requireCompact bool) (*Account, bool) {
 	var selected *Account
+	selectedPriority := 0
 	selectedCompactTier := -1
 	compactBlocked := false
 	needsUpstreamCheck := s.needsUpstreamChannelRestrictionCheck(ctx, groupID)
@@ -1553,6 +1560,7 @@ func (s *OpenAIGatewayService) selectBestAccount(ctx context.Context, groupID *i
 		// Select highest priority and least recently used
 		if selected == nil {
 			selected = fresh
+			selectedPriority = acc.EffectivePriority(groupID)
 			selectedCompactTier = compactTier
 			continue
 		}
@@ -1566,13 +1574,24 @@ func (s *OpenAIGatewayService) selectBestAccount(ctx context.Context, groupID *i
 			continue
 		}
 
-		if s.isBetterAccount(fresh, selected) {
+		candidatePriority := acc.EffectivePriority(groupID)
+		if candidatePriority < selectedPriority ||
+			(candidatePriority == selectedPriority && s.isBetterAccountAtSamePriority(fresh, selected)) {
 			selected = fresh
+			selectedPriority = candidatePriority
 			selectedCompactTier = compactTier
 		}
 	}
 
 	return selected, compactBlocked
+}
+
+func (s *OpenAIGatewayService) isBetterAccountAtSamePriority(candidate, current *Account) bool {
+	candidateCopy := *candidate
+	currentCopy := *current
+	candidateCopy.Priority = 0
+	currentCopy.Priority = 0
+	return s.isBetterAccount(&candidateCopy, &currentCopy)
 }
 
 // isBetterAccount 判断 candidate 是否比 current 更优。
@@ -1782,8 +1801,10 @@ func (s *OpenAIGatewayService) selectAccountWithLoadAwareness(ctx context.Contex
 
 		sort.SliceStable(available, func(i, j int) bool {
 			a, b := available[i], available[j]
-			if a.account.Priority != b.account.Priority {
-				return a.account.Priority < b.account.Priority
+			aPriority := a.account.EffectivePriority(groupID)
+			bPriority := b.account.EffectivePriority(groupID)
+			if aPriority != bPriority {
+				return aPriority < bPriority
 			}
 			if a.loadInfo.LoadRate != b.loadInfo.LoadRate {
 				return a.loadInfo.LoadRate < b.loadInfo.LoadRate
@@ -1850,7 +1871,7 @@ func (s *OpenAIGatewayService) selectAccountWithLoadAwareness(ctx context.Contex
 	loadMap, err := s.concurrencyService.GetAccountsLoadBatch(ctx, accountLoads)
 	if err != nil {
 		ordered := append([]*Account(nil), candidates...)
-		sortAccountsByPriorityAndLastUsed(ordered, false)
+		sortOpenAIAccountsByEffectivePriorityAndLastUsed(ordered, groupID)
 		if requireCompact {
 			ordered = prioritizeOpenAICompactAccounts(ordered)
 		}
@@ -1895,7 +1916,7 @@ func (s *OpenAIGatewayService) selectAccountWithLoadAwareness(ctx context.Contex
 	}
 
 	// ============ Layer 3: Fallback wait ============
-	sortAccountsByPriorityAndLastUsed(candidates, false)
+	sortOpenAIAccountsByEffectivePriorityAndLastUsed(candidates, groupID)
 	if requireCompact {
 		candidates = prioritizeOpenAICompactAccounts(candidates)
 	}
@@ -1923,6 +1944,31 @@ func (s *OpenAIGatewayService) selectAccountWithLoadAwareness(ctx context.Contex
 		return nil, ErrNoAvailableCompactAccounts
 	}
 	return nil, ErrNoAvailableAccounts
+}
+
+// sortOpenAIAccountsByEffectivePriorityAndLastUsed keeps the legacy load-aware
+// fallback consistent with the group-aware selector. A group binding is an
+// intentional routing override, so the global account priority must not win
+// when a request is scoped to that group.
+func sortOpenAIAccountsByEffectivePriorityAndLastUsed(accounts []*Account, groupID *int64) {
+	sort.SliceStable(accounts, func(i, j int) bool {
+		a, b := accounts[i], accounts[j]
+		aPriority := a.EffectivePriority(groupID)
+		bPriority := b.EffectivePriority(groupID)
+		if aPriority != bPriority {
+			return aPriority < bPriority
+		}
+		switch {
+		case a.LastUsedAt == nil && b.LastUsedAt != nil:
+			return true
+		case a.LastUsedAt != nil && b.LastUsedAt == nil:
+			return false
+		case a.LastUsedAt == nil && b.LastUsedAt == nil:
+			return false
+		default:
+			return a.LastUsedAt.Before(*b.LastUsedAt)
+		}
+	})
 }
 
 func (s *OpenAIGatewayService) listSchedulableAccounts(ctx context.Context, groupID *int64) ([]Account, error) {
@@ -2134,6 +2180,25 @@ func isOpenAIUpstreamConcurrencyLimited(upstreamMsg string, upstreamBody []byte)
 func (s *OpenAIGatewayService) handleFailoverSideEffects(ctx context.Context, resp *http.Response, account *Account) {
 	body, _ := io.ReadAll(io.LimitReader(resp.Body, 2<<20))
 	s.handleOpenAIAccountUpstreamError(ctx, account, resp.StatusCode, resp.Header, body)
+}
+
+// newOpenAITransportFailoverError keeps a connection failure inside the same
+// account failover loop. The caller must not write an HTTP response first: a
+// healthy channel in the selected group can still complete this request.
+func (s *OpenAIGatewayService) newOpenAITransportFailoverError(ctx context.Context, c *gin.Context, account *Account, err error, passthrough bool) *UpstreamFailoverError {
+	safeErr := sanitizeUpstreamErrorMessage(err.Error())
+	setOpsUpstreamError(c, 0, safeErr, "")
+	appendOpsUpstreamError(c, OpsUpstreamErrorEvent{
+		Platform:           account.Platform,
+		AccountID:          account.ID,
+		AccountName:        account.Name,
+		UpstreamStatusCode: 0,
+		Passthrough:        passthrough,
+		Kind:               "request_error",
+		Message:            safeErr,
+	})
+	s.handleOpenAIAccountUpstreamError(ctx, account, http.StatusBadGateway, http.Header{}, nil)
+	return &UpstreamFailoverError{StatusCode: http.StatusBadGateway}
 }
 
 // Forward forwards request to OpenAI API
@@ -2860,24 +2925,7 @@ func (s *OpenAIGatewayService) Forward(ctx context.Context, c *gin.Context, acco
 		resp, err := s.httpUpstream.Do(upstreamReq, proxyURL, account.ID, account.Concurrency)
 		SetOpsLatencyMs(c, OpsUpstreamLatencyMsKey, time.Since(upstreamStart).Milliseconds())
 		if err != nil {
-			// Ensure the client receives an error response (handlers assume Forward writes on non-failover errors).
-			safeErr := sanitizeUpstreamErrorMessage(err.Error())
-			setOpsUpstreamError(c, 0, safeErr, "")
-			appendOpsUpstreamError(c, OpsUpstreamErrorEvent{
-				Platform:           account.Platform,
-				AccountID:          account.ID,
-				AccountName:        account.Name,
-				UpstreamStatusCode: 0,
-				Kind:               "request_error",
-				Message:            safeErr,
-			})
-			c.JSON(http.StatusBadGateway, gin.H{
-				"error": gin.H{
-					"type":    "upstream_error",
-					"message": "Upstream request failed",
-				},
-			})
-			return nil, fmt.Errorf("upstream request failed: %s", safeErr)
+			return nil, s.newOpenAITransportFailoverError(ctx, c, account, err, false)
 		}
 
 		// Handle error response
@@ -3171,24 +3219,7 @@ func (s *OpenAIGatewayService) forwardOpenAIPassthrough(
 	resp, err := s.httpUpstream.Do(upstreamReq, proxyURL, account.ID, account.Concurrency)
 	SetOpsLatencyMs(c, OpsUpstreamLatencyMsKey, time.Since(upstreamStart).Milliseconds())
 	if err != nil {
-		safeErr := sanitizeUpstreamErrorMessage(err.Error())
-		setOpsUpstreamError(c, 0, safeErr, "")
-		appendOpsUpstreamError(c, OpsUpstreamErrorEvent{
-			Platform:           account.Platform,
-			AccountID:          account.ID,
-			AccountName:        account.Name,
-			UpstreamStatusCode: 0,
-			Passthrough:        true,
-			Kind:               "request_error",
-			Message:            safeErr,
-		})
-		c.JSON(http.StatusBadGateway, gin.H{
-			"error": gin.H{
-				"type":    "upstream_error",
-				"message": "Upstream request failed",
-			},
-		})
-		return nil, fmt.Errorf("upstream request failed: %s", safeErr)
+		return nil, s.newOpenAITransportFailoverError(ctx, c, account, err, true)
 	}
 	defer func() { _ = resp.Body.Close() }()
 

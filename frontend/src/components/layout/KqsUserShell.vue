@@ -83,7 +83,7 @@ async function handleLogout() {
 <style scoped>
 .kqs-shell {
   --kqs-bg: #08231d;
-  --kqs-card: rgba(5, 29, 24, 0.78);
+  --kqs-card: rgba(3, 22, 18, 0.4);
   --kqs-card-strong: rgba(4, 24, 20, 0.9);
   --kqs-card-soft: rgba(34, 197, 94, 0.14);
   --kqs-border: rgba(43, 132, 83, 0.38);
@@ -114,16 +114,17 @@ async function handleLogout() {
 
 .kqs-shell::before {
   background:
-    url('/kqs-mountain-water-texture.fast.jpg?v=20260616-fastbg') center top / cover no-repeat,
-    linear-gradient(180deg, rgba(34, 197, 94, 0.03), transparent 42%, rgba(0, 0, 0, 0.12));
-  opacity: 0.86;
+    linear-gradient(180deg, rgba(2, 16, 12, 0.26) 0%, rgba(3, 24, 18, 0.3) 44%, rgba(2, 15, 12, 0.44) 100%),
+    url('/kqs-mountain-water-gilded-v2.webp?v=20260730-image2') center top / 100% auto no-repeat;
+  opacity: 1;
   mix-blend-mode: normal;
-  mask-image: linear-gradient(180deg, #000 0%, rgba(0, 0, 0, 0.72) 62%, rgba(0, 0, 0, 0.18) 100%);
+  filter: saturate(0.82) contrast(1.05) brightness(0.88);
 }
 
 .kqs-shell::after {
-  background: radial-gradient(ellipse at 50% 52%, rgba(0, 0, 0, 0.18), transparent 36rem);
-  opacity: 0.72;
+  background:
+    radial-gradient(ellipse at 50% 34%, transparent, rgba(2, 12, 9, 0.1) 68%, rgba(2, 12, 9, 0.24) 100%),
+    linear-gradient(180deg, rgba(2, 12, 9, 0.03), transparent 44%, rgba(2, 12, 9, 0.12));
 }
 
 .kqs-topbar {
@@ -141,10 +142,8 @@ async function handleLogout() {
   border: 1px solid var(--kqs-border);
   border-top: 0;
   border-radius: 0 0 8px 8px;
-  background: var(--kqs-card-strong);
-  box-shadow:
-    0 22px 58px rgba(0, 0, 0, 0.3),
-    inset 0 1px 0 rgba(34, 197, 94, 0.08);
+  background: var(--kqs-card);
+  box-shadow: none;
 }
 
 .kqs-brand {
@@ -176,7 +175,7 @@ async function handleLogout() {
   gap: 0.2rem;
   border: 1px solid var(--kqs-border);
   border-radius: 8px;
-  background: rgba(3, 22, 18, 0.72);
+  background: var(--kqs-card);
   padding: 0.18rem;
 }
 
@@ -290,15 +289,35 @@ async function handleLogout() {
 .kqs-shell :deep(.subscription-shop__plans),
 .kqs-shell :deep(.subscription-shop__side > section),
 .kqs-shell :deep(.subscription-shop__hall),
+.kqs-shell :deep(.subscription-plan),
+.kqs-shell :deep(.subscription-room),
+.kqs-shell :deep(.subscription-current),
+.kqs-shell :deep(.purchase-market__redeem-card),
+.kqs-shell :deep(.affiliate-hero),
+.kqs-shell :deep(.affiliate-panel),
+.kqs-shell :deep(.affiliate-stat),
+.kqs-shell :deep(.affiliate-loading),
+.kqs-shell :deep(.affiliate-copy-card),
+.kqs-shell :deep(.channel-hero),
+.kqs-shell :deep(.channel-group-divider),
+.kqs-shell :deep(.channel-monitor-card),
+.kqs-shell :deep(.channel-summary-card),
+.kqs-shell :deep(.channel-overview),
+.kqs-shell :deep(.channel-timeline-panel),
+.kqs-shell :deep(.channel-guidance article),
+.kqs-shell :deep(.guide-hero),
+.kqs-shell :deep(.guide-panel),
+.kqs-shell :deep(.guide-rules),
+.kqs-shell :deep(.layout-section-fixed),
+.kqs-shell :deep(.table-scroll-container),
 .kqs-shell :deep(.card),
 .kqs-shell :deep(.table-container) {
   position: relative;
   overflow: hidden;
-  background: var(--kqs-card);
-  box-shadow:
-    0 24px 68px rgba(0, 0, 0, 0.26),
-    inset 0 1px 0 rgba(34, 197, 94, 0.08);
+  background: var(--kqs-card) !important;
+  box-shadow: none !important;
   border-color: var(--kqs-border);
+  backdrop-filter: none;
 }
 
 .kqs-shell :deep(.kqs-panel),

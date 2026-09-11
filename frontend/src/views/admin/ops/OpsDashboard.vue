@@ -39,18 +39,10 @@
         @exit-fullscreen="exitFullscreen"
       />
 
-      <!-- Row: Concurrency + Throughput -->
-      <div v-if="opsEnabled && !(loading && !hasLoadedOnce)" class="grid grid-cols-1 gap-6 lg:grid-cols-4">
+      <!-- Default to the decisions that need immediate action. -->
+      <div v-if="opsEnabled && !(loading && !hasLoadedOnce)" class="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <div class="lg:col-span-1 min-h-[360px]">
           <OpsConcurrencyCard :platform-filter="platform" :group-id-filter="groupId" :refresh-token="dashboardRefreshToken" />
-        </div>
-        <div class="lg:col-span-1 min-h-[360px]">
-          <OpsSwitchRateTrendChart
-            :points="switchTrend?.points ?? []"
-            :loading="loadingSwitchTrend"
-            :time-range="switchTrendTimeRange"
-            :fullscreen="isFullscreen"
-          />
         </div>
         <div class="lg:col-span-2 min-h-[360px]">
           <OpsThroughputTrendChart
@@ -67,14 +59,27 @@
         </div>
       </div>
 
-      <!-- Row: Visual Analysis (baseline 3-up grid) -->
-      <div v-if="opsEnabled && !(loading && !hasLoadedOnce)" class="grid grid-cols-1 gap-6 md:grid-cols-3">
-        <OpsLatencyChart :latency-data="latencyHistogram" :loading="loadingLatency" />
-        <OpsErrorDistributionChart
-          :data="errorDistribution"
-          :loading="loadingErrorDistribution"
-          @open-details="openErrorDetails('request')"
-        />
+      <div v-if="opsEnabled && !(loading && !hasLoadedOnce)" class="flex justify-center">
+        <button class="btn btn-secondary" @click="showDiagnostics = !showDiagnostics">
+          {{ showDiagnostics ? '收起诊断详情' : '展开诊断详情' }}
+        </button>
+      </div>
+
+      <template v-if="opsEnabled && showDiagnostics && !(loading && !hasLoadedOnce)">
+        <div class="grid grid-cols-1 gap-6 lg:grid-cols-3">
+          <OpsSwitchRateTrendChart
+            :points="switchTrend?.points ?? []"
+            :loading="loadingSwitchTrend"
+            :time-range="switchTrendTimeRange"
+            :fullscreen="isFullscreen"
+          />
+          <OpsLatencyChart :latency-data="latencyHistogram" :loading="loadingLatency" />
+          <OpsErrorDistributionChart
+            :data="errorDistribution"
+            :loading="loadingErrorDistribution"
+            @open-details="openErrorDetails('request')"
+          />
+        </div>
         <OpsErrorTrendChart
           :points="errorTrend?.points ?? []"
           :loading="loadingErrorTrend"
@@ -82,26 +87,18 @@
           @open-request-errors="openErrorDetails('request')"
           @open-upstream-errors="openErrorDetails('upstream')"
         />
-      </div>
-
-      <!-- Row: OpenAI Token Stats -->
-      <div v-if="opsEnabled && showOpenAITokenStats && !(loading && !hasLoadedOnce)" class="grid grid-cols-1 gap-6">
         <OpsOpenAITokenStatsCard
+          v-if="showOpenAITokenStats"
           :platform-filter="platform"
           :group-id-filter="groupId"
           :refresh-token="dashboardRefreshToken"
         />
-      </div>
-
-      <!-- Alert Events -->
-      <OpsAlertEventsCard v-if="opsEnabled && showAlertEvents && !(loading && !hasLoadedOnce)" />
-
-      <!-- System Logs -->
-      <OpsSystemLogTable
-        v-if="opsEnabled && !(loading && !hasLoadedOnce)"
-        :platform-filter="platform"
-        :refresh-token="dashboardRefreshToken"
-      />
+        <OpsAlertEventsCard v-if="showAlertEvents" />
+        <OpsSystemLogTable
+          :platform-filter="platform"
+          :refresh-token="dashboardRefreshToken"
+        />
+      </template>
 
       <!-- Settings Dialog (hidden in fullscreen mode) -->
       <template v-if="!isFullscreen">
@@ -187,6 +184,7 @@ const allowedQueryModes = new Set<QueryMode>(['auto', 'raw', 'preagg'])
 const loading = ref(true)
 const hasLoadedOnce = ref(false)
 const errorMessage = ref('')
+const showDiagnostics = ref(false)
 const lastUpdated = ref<Date | null>(new Date())
 
 const timeRange = ref<TimeRange>('1h')

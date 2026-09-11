@@ -46,3 +46,20 @@ func TestBuildOpsErrorLogsWhere_UserQueryUsesExistsSubquery(t *testing.T) {
 		t.Fatalf("where should include EXISTS user email condition: %s", where)
 	}
 }
+
+func TestBuildOpsErrorLogsWhere_StatusFilterUsesFinalResponseStatus(t *testing.T) {
+	filter := &service.OpsErrorLogFilter{
+		StatusCodes: []int{502},
+	}
+
+	where, args := buildOpsErrorLogsWhere(filter)
+	if len(args) != 1 {
+		t.Fatalf("args len = %d, want 1", len(args))
+	}
+	if !strings.Contains(where, "COALESCE(e.status_code, 0) = ANY($1)") {
+		t.Fatalf("status filter must use final response status: %s", where)
+	}
+	if strings.Contains(where, "upstream_status_code") {
+		t.Fatalf("status filter must not substitute intermediate upstream status: %s", where)
+	}
+}

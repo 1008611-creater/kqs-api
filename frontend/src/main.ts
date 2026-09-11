@@ -21,24 +21,22 @@ async function bootstrap() {
   const pinia = createPinia()
   app.use(pinia)
 
-  // Initialize settings from injected config BEFORE mounting (prevents flash)
-  // This must happen after pinia is installed but before router and i18n
+  // Hydrate public settings before the first render. AuthLayout and auth
+  // views still request a fresh copy, but the shared store must not transition
+  // from its defaults while Vue is mounting the initial route.
   const appStore = useAppStore()
   appStore.initFromInjectedConfig()
-
-  // Set document title immediately after config is loaded
-  if (appStore.siteName) {
-    document.title = `${appStore.siteName} - 矿泉水 AI API 网关`
-  }
 
   await initI18n()
 
   app.use(router)
   app.use(i18n)
-
-  // 等待路由器完成初始导航后再挂载，避免竞态条件导致的空白渲染
-  await router.isReady()
   app.mount('#app')
+
+  // Client-side navigation can finish after the root is mounted. Mounting
+  // first prevents a redirect during router initialization from invalidating
+  // the root vnode's anchor nodes.
+  await router.isReady()
 }
 
 bootstrap()

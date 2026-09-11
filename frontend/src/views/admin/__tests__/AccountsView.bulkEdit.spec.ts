@@ -7,12 +7,14 @@ const {
   listAccounts,
   listWithEtag,
   getBatchTodayStats,
+  getAccountRoutingStats,
   getAllProxies,
   getAllGroups
 } = vi.hoisted(() => ({
   listAccounts: vi.fn(),
   listWithEtag: vi.fn(),
   getBatchTodayStats: vi.fn(),
+  getAccountRoutingStats: vi.fn(),
   getAllProxies: vi.fn(),
   getAllGroups: vi.fn()
 }))
@@ -34,6 +36,12 @@ vi.mock('@/api/admin', () => ({
     groups: {
       getAll: getAllGroups
     }
+  }
+}))
+
+vi.mock('@/api/admin/ops', () => ({
+  opsAPI: {
+    getAccountRoutingStats
   }
 }))
 
@@ -84,6 +92,7 @@ describe('admin AccountsView bulk edit scope', () => {
     listAccounts.mockReset()
     listWithEtag.mockReset()
     getBatchTodayStats.mockReset()
+    getAccountRoutingStats.mockReset()
     getAllProxies.mockReset()
     getAllGroups.mockReset()
 
@@ -100,6 +109,7 @@ describe('admin AccountsView bulk edit scope', () => {
       data: null
     })
     getBatchTodayStats.mockResolvedValue({ stats: {} })
+    getAccountRoutingStats.mockResolvedValue({ accounts: [], total_requests: 0 })
     getAllProxies.mockResolvedValue([])
     getAllGroups.mockResolvedValue([])
   })

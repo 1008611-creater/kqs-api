@@ -24,6 +24,15 @@ type schedulerTestOpenAIAccountRepo struct {
 	accounts []Account
 }
 
+type schedulerTestScheduledTelemetryRepo struct {
+	ScheduledTestResultRepository
+	data map[int64]ScheduledTestAccountTelemetry
+}
+
+func (r schedulerTestScheduledTelemetryRepo) GetRecentAccountTelemetry(_ context.Context, _ []int64, _ time.Time) (map[int64]ScheduledTestAccountTelemetry, error) {
+	return r.data, nil
+}
+
 func (r schedulerTestOpenAIAccountRepo) GetByID(ctx context.Context, id int64) (*Account, error) {
 	for i := range r.accounts {
 		if r.accounts[i].ID == id {
@@ -680,7 +689,7 @@ func TestOpenAIGatewayService_SelectAccountWithScheduler_SessionSticky(t *testin
 	}
 }
 
-func TestOpenAIGatewayService_SelectAccountWithScheduler_SessionStickyBusyKeepsSticky(t *testing.T) {
+func TestOpenAIGatewayService_SelectAccountWithScheduler_SessionStickyBusyFallsBackImmediately(t *testing.T) {
 	ctx := context.Background()
 	groupID := int64(10100)
 	accounts := []Account{
@@ -709,8 +718,6 @@ func TestOpenAIGatewayService_SelectAccountWithScheduler_SessionStickyBusyKeepsS
 		},
 	}
 	cfg := &config.Config{}
-	cfg.Gateway.Scheduling.StickySessionMaxWaiting = 2
-	cfg.Gateway.Scheduling.StickySessionWaitTimeout = 45 * time.Second
 	cfg.Gateway.OpenAIWS.Enabled = true
 	cfg.Gateway.OpenAIWS.APIKeyEnabled = true
 	cfg.Gateway.OpenAIWS.OAuthEnabled = true
@@ -719,10 +726,7 @@ func TestOpenAIGatewayService_SelectAccountWithScheduler_SessionStickyBusyKeepsS
 	concurrencyCache := schedulerTestConcurrencyCache{
 		acquireResults: map[int64]bool{
 			21001: false, // sticky 账号已满
-			21002: true,  // 若回退负载均衡会命中该账号（本测试要求不能切换）
-		},
-		waitCounts: map[int64]int{
-			21001: 999,
+			21002: true,
 		},
 		loadMap: map[int64]*AccountLoadInfo{
 			21001: {AccountID: 21001, LoadRate: 90, WaitingCount: 9},
@@ -751,12 +755,15 @@ func TestOpenAIGatewayService_SelectAccountWithScheduler_SessionStickyBusyKeepsS
 	require.NoError(t, err)
 	require.NotNil(t, selection)
 	require.NotNil(t, selection.Account)
-	require.Equal(t, int64(21001), selection.Account.ID, "busy sticky account should remain selected")
-	require.False(t, selection.Acquired)
-	require.NotNil(t, selection.WaitPlan)
-	require.Equal(t, int64(21001), selection.WaitPlan.AccountID)
-	require.Equal(t, openAIAccountScheduleLayerSessionSticky, decision.Layer)
-	require.True(t, decision.StickySessionHit)
+	require.Equal(t, int64(21002), selection.Account.ID)
+	require.True(t, selection.Acquired)
+	require.Nil(t, selection.WaitPlan)
+	require.Equal(t, openAIAccountScheduleLayerLoadBalance, decision.Layer)
+	require.False(t, decision.StickySessionHit)
+	require.Equal(t, int64(21002), cache.sessionBindings["openai:session_hash_sticky_busy"])
+	if selection.ReleaseFunc != nil {
+		selection.ReleaseFunc()
+	}
 }
 
 func TestOpenAIGatewayService_SelectAccountWithScheduler_SessionSticky_ForceHTTP(t *testing.T) {
@@ -1243,6 +1250,108 @@ func TestOpenAIGatewayService_SelectAccountWithScheduler_LoadBalanceDistributesA
 
 	// 多 session 应该能打散到多个账号，避免“恒定单账号命中”。
 	require.GreaterOrEqual(t, len(selected), 2)
+}
+
+func TestOpenAIAccountScheduler_GroupPriorityOverridesGlobalPriority(t *testing.T) {
+	groupID := int64(91)
+	accounts := []*Account{
+		{ID: 1, Priority: 1, AccountGroups: []AccountGroup{{GroupID: groupID, Priority: 9}}},
+		{ID: 2, Priority: 9, AccountGroups: []AccountGroup{{GroupID: groupID, Priority: 1}}},
+	}
+	cfg := &config.Config{}
+	cfg.Gateway.OpenAIWS.LBTopK = 1
+	scheduler := &defaultOpenAIAccountScheduler{service: &OpenAIGatewayService{cfg: cfg}}
+	plan := scheduler.buildOpenAIAccountLoadPlan(
+		OpenAIAccountScheduleRequest{GroupID: &groupID, RequestedModel: "gpt-5.1"},
+		accounts,
+		map[int64]*AccountLoadInfo{
+			1: {AccountID: 1},
+			2: {AccountID: 2},
+		},
+	)
+
+	require.Len(t, plan.selectionOrder, 2)
+	require.Equal(t, int64(2), plan.selectionOrder[0].account.ID)
+	require.Equal(t, 1, plan.selectionOrder[0].effectivePriority)
+}
+
+func TestOpenAIAccountScheduler_TopKRetainsRemainingChannelsAsFallback(t *testing.T) {
+	scheduler := &defaultOpenAIAccountScheduler{}
+	plan := openAIAccountLoadPlan{
+		candidates: []openAIAccountCandidateScore{
+			{account: &Account{ID: 1}, loadInfo: &AccountLoadInfo{}, score: 4},
+			{account: &Account{ID: 2}, loadInfo: &AccountLoadInfo{}, score: 3},
+			{account: &Account{ID: 3}, loadInfo: &AccountLoadInfo{}, score: 2},
+			{account: &Account{ID: 4}, loadInfo: &AccountLoadInfo{}, score: 1},
+		},
+		topK: 1,
+	}
+
+	order := scheduler.buildOpenAISelectionOrder(OpenAIAccountScheduleRequest{SessionHash: "keep_all_fallbacks"}, plan)
+	require.Len(t, order, 4)
+	require.Equal(t, int64(1), order[0].account.ID)
+	require.Equal(t, int64(2), order[1].account.ID)
+	require.Equal(t, int64(3), order[2].account.ID)
+	require.Equal(t, int64(4), order[3].account.ID)
+}
+
+func TestOpenAIAccountScheduler_GroupPriorityFallsBackToGlobalPriority(t *testing.T) {
+	groupID := int64(92)
+	account := &Account{ID: 3, Priority: 4, AccountGroups: []AccountGroup{{GroupID: 999, Priority: 1}}}
+
+	require.Equal(t, 4, account.EffectivePriority(&groupID))
+	require.Equal(t, 4, account.EffectivePriority(nil))
+}
+
+func TestOpenAILegacyLoadAwareSortUsesGroupPriority(t *testing.T) {
+	groupID := int64(94)
+	accounts := []*Account{
+		{ID: 1, Priority: 1, AccountGroups: []AccountGroup{{GroupID: groupID, Priority: 9}}},
+		{ID: 2, Priority: 9, AccountGroups: []AccountGroup{{GroupID: groupID, Priority: 1}}},
+	}
+
+	sortOpenAIAccountsByEffectivePriorityAndLastUsed(accounts, &groupID)
+
+	require.Equal(t, int64(2), accounts[0].ID)
+}
+
+func TestOpenAIAccountScheduler_RecentProbeTelemetryPrefersFastHealthyCandidate(t *testing.T) {
+	groupID := int64(93)
+	now := time.Now()
+	accounts := []*Account{
+		{ID: 1, Priority: 1, AccountGroups: []AccountGroup{{GroupID: groupID, Priority: 1}}},
+		{ID: 2, Priority: 1, AccountGroups: []AccountGroup{{GroupID: groupID, Priority: 1}}},
+	}
+	cfg := &config.Config{}
+	cfg.Gateway.OpenAIWS.LBTopK = 1
+	scheduler := &defaultOpenAIAccountScheduler{service: &OpenAIGatewayService{
+		cfg: cfg,
+		scheduledTestResultRepo: schedulerTestScheduledTelemetryRepo{data: map[int64]ScheduledTestAccountTelemetry{
+			1: {AccountID: 1, SampleCount: 4, SuccessRate: 1, AverageLatencyMs: 900, LastCheckedAt: now},
+			2: {AccountID: 2, SampleCount: 4, SuccessRate: 0.5, AverageLatencyMs: 12000, LastCheckedAt: now},
+		}},
+	}}
+
+	plan := scheduler.buildOpenAIAccountLoadPlan(
+		OpenAIAccountScheduleRequest{GroupID: &groupID, RequestedModel: "gpt-5.1"},
+		accounts,
+		map[int64]*AccountLoadInfo{1: {AccountID: 1}, 2: {AccountID: 2}},
+	)
+
+	require.Len(t, plan.selectionOrder, 2)
+	require.Equal(t, int64(1), plan.selectionOrder[0].account.ID)
+}
+
+func TestOpenAIAccountRuntimeStats_CoolsDownAfterConsecutiveFailuresAndRecoversOnSuccess(t *testing.T) {
+	stats := newOpenAIAccountRuntimeStats()
+	stats.report(7, false, nil)
+	require.False(t, stats.isCoolingDown(7))
+
+	stats.report(7, false, nil)
+	require.True(t, stats.isCoolingDown(7))
+
+	stats.report(7, true, nil)
+	require.False(t, stats.isCoolingDown(7))
 }
 
 func TestDeriveOpenAISelectionSeed_NoAffinityAddsEntropy(t *testing.T) {

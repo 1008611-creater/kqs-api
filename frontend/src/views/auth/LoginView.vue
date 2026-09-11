@@ -6,9 +6,6 @@
         <h2 class="text-2xl font-black tracking-tight text-primary-950 dark:text-white">
           {{ t('auth.welcomeBack') }}
         </h2>
-        <p class="mt-2 text-sm leading-6 text-primary-900/58 dark:text-white/58">
-          {{ t('auth.signInToAccount') }}
-        </p>
       </div>
       <!-- Login Form -->
       <form @submit.prevent="handleLogin" class="space-y-5">

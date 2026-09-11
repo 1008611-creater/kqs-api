@@ -4,9 +4,7 @@
       <template #filters>
         <div class="accounts-command-panel">
           <div class="accounts-command-copy">
-            <span class="accounts-command-eyebrow">{{ t('admin.accounts.hero.eyebrow') }}</span>
-            <h2>{{ t('admin.accounts.hero.title') }}</h2>
-            <p>{{ t('admin.accounts.hero.description') }}</p>
+            <h2>账号管理</h2>
             <div class="accounts-command-steps" :aria-label="t('admin.accounts.hero.stepsLabel')">
               <span>{{ t('admin.accounts.hero.stepAuthorize') }}</span>
               <span>{{ t('admin.accounts.hero.stepRoute') }}</span>
@@ -35,11 +33,19 @@
 
         <div class="accounts-supply-strip">
           <div class="accounts-supply-strip-copy">
-            <span class="accounts-supply-eyebrow">{{ t('admin.accounts.supplyControl.eyebrow') }}</span>
-            <strong>{{ t('admin.accounts.supplyControl.title') }}</strong>
-            <p>{{ t('admin.accounts.supplyControl.description') }}</p>
+            <strong>批量调度</strong>
+            <span class="accounts-supply-legend">{{ t('admin.accounts.supplyControl.legend') }}</span>
           </div>
           <div class="accounts-supply-strip-actions">
+            <label class="accounts-routing-window">
+              <span>{{ t('admin.accounts.supplyControl.window') }}</span>
+              <select v-model="routingWindow" @change="refreshRoutingStats" class="accounts-routing-window-select">
+                <option value="15m">15m</option>
+                <option value="1h">1h</option>
+                <option value="6h">6h</option>
+                <option value="24h">24h</option>
+              </select>
+            </label>
             <button class="btn btn-secondary px-3 py-2 text-sm" @click="showSupplyColumns">
               {{ t('admin.accounts.supplyControl.showColumns') }}
             </button>
@@ -306,6 +312,27 @@
               </div>
             </div>
           </template>
+          <template #cell-channel="{ row }">
+            <div class="account-composite-cell account-composite-cell--channel">
+              <PlatformTypeBadge :platform="row.platform" :type="row.type" :plan-type="row.credentials?.plan_type" :privacy-mode="row.extra?.privacy_mode" :subscription-expires-at="row.credentials?.subscription_expires_at" />
+              <div class="account-composite-meta">
+                <AccountGroupsCell v-if="!authStore.isSimpleMode" :groups="row.groups" :max-display="2" />
+                <span v-if="row.proxy" class="truncate" :title="row.proxy.name">{{ row.proxy.name }}</span>
+                <span v-else-if="row.notes" class="truncate" :title="row.notes">{{ row.notes }}</span>
+              </div>
+            </div>
+          </template>
+          <template #cell-health="{ row }">
+            <div class="account-composite-cell account-composite-cell--health">
+              <div class="flex items-center justify-between gap-2">
+                <AccountStatusIndicator :account="row" @show-temp-unsched="handleShowTempUnsched" />
+                <button @click="handleToggleSchedulable(row)" :disabled="togglingSchedulable === row.id" class="relative inline-flex h-4 w-7 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 dark:focus:ring-offset-dark-800" :class="[row.schedulable ? 'bg-primary-500 hover:bg-primary-600' : 'bg-gray-200 hover:bg-gray-300 dark:bg-dark-600 dark:hover:bg-dark-500']" :title="row.schedulable ? t('admin.accounts.schedulableEnabled') : t('admin.accounts.schedulableDisabled')">
+                  <span class="pointer-events-none inline-block h-3 w-3 transform rounded-full bg-white shadow ring-0 transition" :class="[row.schedulable ? 'translate-x-3' : 'translate-x-0']" />
+                </button>
+              </div>
+              <AccountCapacityCell :account="row" />
+            </div>
+          </template>
           <template #cell-capacity="{ row }">
             <AccountCapacityCell :account="row" />
           </template>
@@ -326,12 +353,12 @@
                 <button
                   class="account-supply-step"
                   :title="t('admin.accounts.supplyControl.raisePriority')"
-                  :disabled="updatingSupplyKey === String(row.id) || (row.priority ?? 1) <= 1"
+                  :disabled="updatingSupplyKey === String(row.id) || getEffectivePriority(row) <= 1"
                   @click="adjustAccountPriority(row, -1)"
                 >
                   -
                 </button>
-                <span class="account-supply-value">{{ row.priority ?? 1 }}</span>
+                <span class="account-supply-value" :title="getPriorityTitle()">{{ getEffectivePriority(row) }}</span>
                 <button
                   class="account-supply-step"
                   :title="t('admin.accounts.supplyControl.lowerPriority')"
@@ -360,6 +387,26 @@
                 >
                   +
                 </button>
+              </div>
+              <span class="account-supply-rate">{{ (row.rate_multiplier ?? 1).toFixed(2) }}x</span>
+              <div class="account-routing-telemetry" :class="{ 'account-routing-telemetry--empty': !routingStatsByAccountId[String(row.id)] }">
+                <template v-if="routingStatsByAccountId[String(row.id)]">
+                  <strong>{{ formatRoutingShare(routingStatsByAccountId[String(row.id)]) }}</strong>
+                  <span>{{ formatRoutingSuccessRate(routingStatsByAccountId[String(row.id)]) }}</span>
+                  <span>{{ formatRoutingLatency(routingStatsByAccountId[String(row.id)]) }}</span>
+                  <span class="account-routing-role">{{ formatRoutingRole(routingStatsByAccountId[String(row.id)]) }}</span>
+                </template>
+                <span v-else>{{ t('admin.accounts.supplyControl.noSample') }}</span>
+              </div>
+            </div>
+          </template>
+          <template #cell-activity="{ row }">
+            <div class="account-composite-cell account-composite-cell--activity">
+              <AccountTodayStatsCell :stats="todayStatsByAccountId[String(row.id)] ?? null" :loading="todayStatsLoading" :error="todayStatsError" />
+              <AccountUsageCell :account="row" :today-stats="todayStatsByAccountId[String(row.id)] ?? null" :today-stats-loading="todayStatsLoading" :manual-refresh-token="usageManualRefreshToken" />
+              <div class="account-composite-meta">
+                <span>{{ formatRelativeTime(row.last_used_at) }}</span>
+                <span v-if="row.expires_at">{{ formatExpiresAt(row.expires_at) }}</span>
               </div>
             </div>
           </template>
@@ -496,6 +543,7 @@ import { useI18n } from 'vue-i18n'
 import { useAppStore } from '@/stores/app'
 import { useAuthStore } from '@/stores/auth'
 import { adminAPI } from '@/api/admin'
+import { opsAPI, type OpsAccountRoutingStats, type OpsRoutingWindow } from '@/api/admin/ops'
 import { useTableLoader } from '@/composables/useTableLoader'
 import { useSwipeSelect, type SwipeSelectVirtualContext } from '@/composables/useSwipeSelect'
 import { useTableSelection } from '@/composables/useTableSelection'
@@ -664,6 +712,12 @@ const todayStatsError = ref<string | null>(null)
 const todayStatsReqSeq = ref(0)
 const pendingTodayStatsRefresh = ref(false)
 const usageManualRefreshToken = ref(0)
+const routingWindow = ref<OpsRoutingWindow>('1h')
+const routingStatsByAccountId = ref<Record<string, OpsAccountRoutingStats>>({})
+const routingStatsLoading = ref(false)
+const routingStatsError = ref<string | null>(null)
+const routingStatsReqSeq = ref(0)
+const pendingRoutingStatsRefresh = ref(false)
 
 const buildDefaultTodayStats = (): WindowStats => ({
   requests: 0,
@@ -715,6 +769,62 @@ const refreshTodayStatsBatch = async () => {
       todayStatsLoading.value = false
     }
   }
+}
+
+const getRoutingGroupId = (): number | undefined => {
+  const value = Number(params.group)
+  return Number.isInteger(value) && value > 0 ? value : undefined
+}
+
+const refreshRoutingStats = async () => {
+  const reqSeq = ++routingStatsReqSeq.value
+  routingStatsLoading.value = true
+  routingStatsError.value = null
+  try {
+    const result = await opsAPI.getAccountRoutingStats({
+      window: routingWindow.value,
+      platform: params.platform || undefined,
+      group_id: getRoutingGroupId()
+    })
+    if (reqSeq !== routingStatsReqSeq.value) return
+    const next: Record<string, OpsAccountRoutingStats> = {}
+    for (const item of result.accounts ?? []) next[String(item.account_id)] = item
+    routingStatsByAccountId.value = next
+  } catch (error) {
+    if (reqSeq !== routingStatsReqSeq.value) return
+    routingStatsByAccountId.value = {}
+    routingStatsError.value = 'Failed'
+    console.error('Failed to load account routing stats:', error)
+  } finally {
+    if (reqSeq === routingStatsReqSeq.value) routingStatsLoading.value = false
+  }
+}
+
+const getEffectivePriority = (account: Account): number => {
+  const groupID = getRoutingGroupId()
+  if (groupID) {
+    const binding = account.account_groups?.find(item => item.group_id === groupID)
+    if (binding && Number.isFinite(binding.priority)) return binding.priority
+    const stat = routingStatsByAccountId.value[String(account.id)]
+    if (stat?.group_priority != null) return stat.group_priority
+  }
+  return Number(account.priority ?? 1) || 1
+}
+
+const getPriorityTitle = () => {
+  const groupID = getRoutingGroupId()
+  if (groupID) return t('admin.accounts.supplyControl.groupPriorityTitle')
+  return t('admin.accounts.supplyControl.globalPriorityTitle')
+}
+
+const formatRoutingShare = (item?: OpsAccountRoutingStats) => item ? `${item.request_share.toFixed(1)}%` : t('admin.accounts.supplyControl.noSample')
+const formatRoutingSuccessRate = (item?: OpsAccountRoutingStats) => item?.success_rate == null ? '-' : `${item.success_rate.toFixed(1)}%`
+const formatRoutingLatency = (item?: OpsAccountRoutingStats) => item?.avg_latency_ms == null ? '-' : `${Math.round(item.avg_latency_ms)}ms`
+const formatRoutingRole = (item?: OpsAccountRoutingStats) => {
+  if (!item) return ''
+  if (item.selection_role === 'preferred') return t('admin.accounts.supplyControl.preferred')
+  if (item.selection_role === 'unavailable') return t('admin.accounts.supplyControl.unavailable')
+  return t('admin.accounts.supplyControl.fallback')
 }
 
 const autoRefreshIntervalLabel = (sec: number) => {
@@ -921,6 +1031,7 @@ const load = async () => {
     delete requestParams.lite
   }
   await refreshTodayStatsBatch()
+  await refreshRoutingStats()
 }
 
 const reload = async () => {
@@ -929,12 +1040,14 @@ const reload = async () => {
   pendingTodayStatsRefresh.value = false
   await baseReload()
   await refreshTodayStatsBatch()
+  await refreshRoutingStats()
 }
 
 const debouncedReload = () => {
   hasPendingListSync.value = false
   resetAutoRefreshCache()
   pendingTodayStatsRefresh.value = true
+  pendingRoutingStatsRefresh.value = true
   baseDebouncedReload()
 }
 
@@ -942,6 +1055,7 @@ const handlePageChange = (page: number) => {
   hasPendingListSync.value = false
   resetAutoRefreshCache()
   pendingTodayStatsRefresh.value = true
+  pendingRoutingStatsRefresh.value = true
   baseHandlePageChange(page)
 }
 
@@ -949,6 +1063,7 @@ const handlePageSizeChange = (size: number) => {
   hasPendingListSync.value = false
   resetAutoRefreshCache()
   pendingTodayStatsRefresh.value = true
+  pendingRoutingStatsRefresh.value = true
   baseHandlePageSizeChange(size)
 }
 
@@ -970,6 +1085,12 @@ watch(loading, (isLoading, wasLoading) => {
     pendingTodayStatsRefresh.value = false
     refreshTodayStatsBatch().catch((error) => {
       console.error('Failed to refresh account today stats after table load:', error)
+    })
+  }
+  if (wasLoading && !isLoading && pendingRoutingStatsRefresh.value) {
+    pendingRoutingStatsRefresh.value = false
+    refreshRoutingStats().catch((error) => {
+      console.error('Failed to refresh account routing stats after table load:', error)
     })
   }
 })
@@ -1249,24 +1370,12 @@ const allColumns = computed(() => {
   const c = [
     { key: 'select', label: '', sortable: false, class: 'accounts-col-select' },
     { key: 'name', label: t('admin.accounts.columns.name'), sortable: true, class: 'accounts-col-name' },
-    { key: 'platform_type', label: t('admin.accounts.columns.platformType'), sortable: false, class: 'accounts-col-platform' },
-    { key: 'capacity', label: t('admin.accounts.columns.capacity'), sortable: false, class: 'accounts-col-capacity' },
-    { key: 'status', label: t('admin.accounts.columns.status'), sortable: true, class: 'accounts-col-status' },
-    { key: 'schedulable', label: t('admin.accounts.columns.schedulable'), sortable: true, class: 'accounts-col-schedulable' },
+    { key: 'channel', label: t('admin.accounts.columns.platformType'), sortable: false, class: 'accounts-col-channel' },
+    { key: 'health', label: t('admin.accounts.columns.status'), sortable: true, class: 'accounts-col-health' },
     { key: 'supply', label: t('admin.accounts.columns.supply'), sortable: false, class: 'accounts-col-supply' },
-    { key: 'today_stats', label: t('admin.accounts.columns.todayStats'), sortable: false, class: 'accounts-col-today-stats' }
+    { key: 'activity', label: t('admin.accounts.columns.todayStats'), sortable: false, class: 'accounts-col-activity' }
   ]
-  if (!authStore.isSimpleMode) {
-    c.push({ key: 'groups', label: t('admin.accounts.columns.groups'), sortable: false, class: 'accounts-col-groups' })
-  }
   c.push(
-    { key: 'usage', label: t('admin.accounts.columns.usageWindows'), sortable: false, class: 'accounts-col-usage' },
-    { key: 'proxy', label: t('admin.accounts.columns.proxy'), sortable: false, class: 'accounts-col-proxy' },
-    { key: 'priority', label: t('admin.accounts.columns.priority'), sortable: true, class: 'accounts-col-priority' },
-    { key: 'rate_multiplier', label: t('admin.accounts.columns.billingRateMultiplier'), sortable: true, class: 'accounts-col-rate' },
-    { key: 'last_used_at', label: t('admin.accounts.columns.lastUsed'), sortable: true, class: 'accounts-col-time' },
-    { key: 'expires_at', label: t('admin.accounts.columns.expiresAt'), sortable: true, class: 'accounts-col-expires' },
-    { key: 'notes', label: t('admin.accounts.columns.notes'), sortable: false, class: 'accounts-col-notes' },
     { key: 'actions', label: t('admin.accounts.columns.actions'), sortable: false, class: 'accounts-col-actions' }
   )
   return c
@@ -1310,9 +1419,28 @@ const updateAccountSupply = async (account: Account, updates: { priority?: numbe
   }
 }
 const adjustAccountPriority = async (account: Account, delta: number) => {
-  const current = Number(account.priority ?? 1)
+  const current = getEffectivePriority(account)
   const nextPriority = Math.max(1, Math.round(current + delta))
   if (nextPriority === current) return
+  const groupID = getRoutingGroupId()
+  const hasGroupBinding = groupID && account.account_groups?.some(item => item.group_id === groupID)
+  if (groupID && hasGroupBinding) {
+    if (updatingSupplyKey.value) return
+    updatingSupplyKey.value = String(account.id)
+    try {
+      const updated = await adminAPI.accounts.updateGroupPriority(account.id, groupID, nextPriority)
+      patchAccountInList(updated)
+      enterAutoRefreshSilentWindow()
+      await refreshRoutingStats()
+      appStore.showSuccess(t('admin.accounts.supplyControl.updated'))
+    } catch (error: any) {
+      console.error('Failed to update account group priority:', error)
+      appStore.showError(error?.response?.data?.message || error?.message || t('admin.accounts.supplyControl.updateFailed'))
+    } finally {
+      updatingSupplyKey.value = null
+    }
+    return
+  }
   await updateAccountSupply(account, { priority: nextPriority })
 }
 const adjustAccountLoadFactor = async (account: Account, delta: number) => {
@@ -1848,11 +1976,12 @@ onUnmounted(() => {
 .accounts-page-layout {
   height: calc(100dvh - 7rem);
   min-height: 0;
-  gap: 0.55rem;
+  gap: 0.18rem;
 }
 
 .accounts-page-layout :deep(.layout-section-fixed) {
-  padding: 0.55rem;
+  border-radius: 8px;
+  padding: 0.18rem 0.22rem;
 }
 
 .accounts-page-layout :deep(.layout-section-fixed:last-child) {
@@ -1865,7 +1994,7 @@ onUnmounted(() => {
 
 .accounts-page-layout :deep(.table-scroll-container) {
   min-height: 0;
-  border-radius: 0.95rem;
+  border-radius: 8px;
 }
 
 .accounts-table-shell {
@@ -1873,12 +2002,18 @@ onUnmounted(() => {
 }
 
 .accounts-table-shell :deep(.table-wrapper) {
-  --select-col-width: 2.5rem;
+  --select-col-width: 2rem;
   min-height: 0;
 }
 
 .accounts-table-shell :deep(table) {
-  table-layout: auto;
+  width: 100% !important;
+  min-width: 100% !important;
+  table-layout: fixed;
+}
+
+.accounts-table-shell :deep(.table-wrapper) {
+  overflow-x: hidden !important;
 }
 
 .accounts-table-shell :deep(th),
@@ -1887,108 +2022,57 @@ onUnmounted(() => {
 }
 
 .accounts-table-shell :deep(th) {
-  padding-top: 0.48rem !important;
-  padding-bottom: 0.48rem !important;
+  padding-top: 0.32rem !important;
+  padding-bottom: 0.32rem !important;
   font-size: 0.7rem !important;
   line-height: 1.05rem;
 }
 
 .accounts-table-shell :deep(td) {
-  padding-top: 0.42rem !important;
-  padding-bottom: 0.42rem !important;
+  padding-top: 0.28rem !important;
+  padding-bottom: 0.28rem !important;
   font-size: 0.8rem !important;
   line-height: 1.15rem;
 }
 
 .accounts-table-shell :deep(.accounts-col-select) {
-  width: 2.5rem;
-  min-width: 2.5rem;
-  max-width: 2.5rem;
+  width: 3%;
+  min-width: 2rem;
+  max-width: 2rem;
   padding-left: 0.6rem !important;
   padding-right: 0.45rem !important;
 }
 
 .accounts-table-shell :deep(.accounts-col-name) {
-  width: 13rem;
-  min-width: 13rem;
-  max-width: 13rem;
+  width: 14%;
+  min-width: 0;
+  max-width: none;
 }
 
-.accounts-table-shell :deep(.accounts-col-platform) {
-  width: 10rem;
-  min-width: 10rem;
-  max-width: 10rem;
+.accounts-table-shell :deep(.accounts-col-channel) {
+  width: 18%;
+  min-width: 0;
 }
 
-.accounts-table-shell :deep(.accounts-col-capacity) {
-  width: 5.75rem;
-  min-width: 5.75rem;
-}
-
-.accounts-table-shell :deep(.accounts-col-status) {
-  width: 6.5rem;
-  min-width: 6.5rem;
-}
-
-.accounts-table-shell :deep(.accounts-col-schedulable) {
-  width: 4.75rem;
-  min-width: 4.75rem;
-  text-align: center;
+.accounts-table-shell :deep(.accounts-col-health) {
+  width: 13%;
+  min-width: 0;
 }
 
 .accounts-table-shell :deep(.accounts-col-supply) {
-  width: 8.25rem;
-  min-width: 8.25rem;
+  width: 17%;
+  min-width: 0;
 }
 
-.accounts-table-shell :deep(.accounts-col-today-stats) {
-  width: 8rem;
-  min-width: 8rem;
-}
-
-.accounts-table-shell :deep(.accounts-col-groups) {
-  width: 9rem;
-  min-width: 9rem;
-  max-width: 9rem;
-}
-
-.accounts-table-shell :deep(.accounts-col-usage) {
-  width: 9.25rem;
-  min-width: 9.25rem;
-}
-
-.accounts-table-shell :deep(.accounts-col-proxy) {
-  width: 8rem;
-  min-width: 8rem;
-  max-width: 8rem;
-}
-
-.accounts-table-shell :deep(.accounts-col-priority) {
-  width: 4.25rem;
-  min-width: 4.25rem;
-}
-
-.accounts-table-shell :deep(.accounts-col-rate) {
-  width: 5.5rem;
-  min-width: 5.5rem;
-}
-
-.accounts-table-shell :deep(.accounts-col-time),
-.accounts-table-shell :deep(.accounts-col-expires) {
-  width: 7rem;
-  min-width: 7rem;
-}
-
-.accounts-table-shell :deep(.accounts-col-notes) {
-  width: 8rem;
-  min-width: 8rem;
-  max-width: 8rem;
+.accounts-table-shell :deep(.accounts-col-activity) {
+  width: 27%;
+  min-width: 0;
 }
 
 .accounts-table-shell :deep(.accounts-col-actions) {
-  width: 6.5rem;
-  min-width: 6.5rem;
-  max-width: 6.5rem;
+  width: 8%;
+  min-width: 5.6rem;
+  max-width: 5.6rem;
   padding-left: 0.45rem !important;
   padding-right: 0.45rem !important;
 }
@@ -1999,13 +2083,14 @@ onUnmounted(() => {
   max-width: 100%;
 }
 
-.accounts-table-shell :deep(.accounts-col-groups > div) {
-  max-width: 8.25rem;
-}
-
-.accounts-table-shell :deep(.accounts-col-groups .max-h-14) {
-  max-height: 2.05rem;
-}
+.account-composite-cell { display: grid; gap: 0.26rem; min-width: 0; }
+.account-composite-cell--channel { align-content: center; }
+.account-composite-cell--health { align-content: center; }
+.account-composite-cell--activity { gap: 0.18rem; }
+.account-composite-meta { display: flex; min-width: 0; align-items: center; gap: 0.35rem; color: #778582; font-size: 0.67rem; line-height: 1.15; }
+.account-composite-meta > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.account-composite-meta :deep(.max-h-14) { max-height: 1.1rem; }
+.account-composite-meta :deep(.text-xs) { font-size: 0.63rem; }
 
 .account-actions {
   display: inline-flex;
@@ -2015,8 +2100,8 @@ onUnmounted(() => {
 
 .account-action-icon {
   display: inline-flex;
-  height: 1.85rem;
-  width: 1.85rem;
+  height: 1.65rem;
+  width: 1.65rem;
   align-items: center;
   justify-content: center;
   border-radius: 0.55rem;
@@ -2027,17 +2112,16 @@ onUnmounted(() => {
 
 .accounts-command-panel {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(22rem, 0.78fr);
+  grid-template-columns: 9rem minmax(0, 1fr);
   align-items: center;
-  gap: 0.55rem;
-  margin-bottom: 0.45rem;
-  border-radius: 0.95rem;
-  padding: 0.58rem 0.68rem;
-  border: 1px solid rgba(0, 137, 78, 0.14);
-  background:
-    radial-gradient(circle at 4% 0%, rgba(238, 195, 73, 0.24), transparent 28%),
-    linear-gradient(135deg, rgba(239, 250, 242, 0.96), rgba(255, 255, 255, 0.9));
-  box-shadow: 0 16px 42px rgba(2, 43, 18, 0.07);
+  gap: 0.35rem;
+  margin: 0;
+  border-radius: 0;
+  padding: 0.28rem 0.4rem;
+  border: 0;
+  border-bottom: 1px solid #e5ecea;
+  background: transparent;
+  box-shadow: none;
 }
 
 .accounts-command-copy {
@@ -2045,32 +2129,27 @@ onUnmounted(() => {
 }
 
 .accounts-command-eyebrow {
-  display: inline-flex;
-  width: fit-content;
-  border-radius: 999px;
-  padding: 0.2rem 0.48rem;
-  border: 1px solid rgba(0, 137, 78, 0.18);
-  background: rgba(255, 255, 255, 0.68);
-  color: #00894e;
-  font-size: 0.62rem;
-  font-weight: 820;
-  letter-spacing: 0.16em;
+  display: block;
+  color: #687875;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0;
 }
 
 .accounts-command-copy h2 {
-  margin-top: 0.25rem;
-  color: #032f1c;
-  font-size: clamp(0.98rem, 1.2vw, 1.2rem);
-  font-weight: 850;
+  margin: 0;
+  color: #17201f;
+  font-size: 0.98rem;
+  font-weight: 700;
   letter-spacing: 0;
 }
 
 .accounts-command-copy p {
-  display: none;
+  display: block;
   margin-top: 0.2rem;
   max-width: 48rem;
-  color: rgba(3, 47, 28, 0.66);
-  font-size: 0.78rem;
+  color: #687875;
+  font-size: 0.75rem;
   line-height: 1.45;
 }
 
@@ -2096,29 +2175,35 @@ onUnmounted(() => {
 .accounts-command-stats {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 0.42rem;
+  gap: 0;
+  border-left: 1px solid #e5ecea;
 }
 
 .accounts-command-stat {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.35rem;
   min-width: 0;
-  border-radius: 0.72rem;
-  padding: 0.42rem 0.5rem;
-  border: 1px solid rgba(0, 137, 78, 0.1);
-  background: rgba(255, 255, 255, 0.72);
+  padding: 0 0.55rem;
+  border-right: 1px solid #e5ecea;
+  background: transparent;
 }
 
+.accounts-command-stat:last-child { border-right: 0; }
+
 .accounts-command-stat span {
-  display: block;
-  color: rgba(3, 47, 28, 0.54);
-  font-size: 0.66rem;
-  font-weight: 650;
+  display: inline;
+  color: #778582;
+  font-size: 0.68rem;
+  font-weight: 600;
 }
 
 .accounts-command-stat strong {
-  display: block;
-  margin-top: 0.18rem;
-  color: #00894e;
-  font-size: 1rem;
+  display: inline;
+  margin: 0;
+  color: #17201f;
+  font-size: 1.1rem;
   line-height: 1;
 }
 
@@ -2126,13 +2211,14 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 0.55rem;
-  margin-bottom: 0.45rem;
-  border-radius: 0.85rem;
-  padding: 0.45rem 0.6rem;
-  border: 1px solid rgba(0, 137, 78, 0.12);
-  background: rgba(255, 255, 255, 0.78);
-  box-shadow: 0 10px 28px rgba(2, 43, 18, 0.055);
+  gap: 0.4rem;
+  margin: 0;
+  border-radius: 0;
+  padding: 0.25rem 0.4rem;
+  border: 0;
+  border-bottom: 1px solid #e5ecea;
+  background: transparent;
+  box-shadow: none;
 }
 
 .accounts-supply-strip-copy {
@@ -2141,26 +2227,25 @@ onUnmounted(() => {
 
 .accounts-supply-eyebrow {
   display: block;
-  color: #00894e;
-  font-size: 0.6rem;
-  font-weight: 820;
-  letter-spacing: 0.14em;
+  color: #778582;
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0;
 }
 
 .accounts-supply-strip-copy strong {
   display: block;
-  margin-top: 0.08rem;
-  color: #032f1c;
-  font-size: 0.84rem;
-  font-weight: 780;
+  margin: 0;
+  color: #24322f;
+  font-size: 0.82rem;
+  font-weight: 700;
 }
 
-.accounts-supply-strip-copy p {
-  display: none;
-  margin-top: 0.12rem;
-  color: rgba(3, 47, 28, 0.58);
-  font-size: 0.8rem;
-  line-height: 1.55;
+.accounts-supply-legend {
+  margin-left: 0.55rem;
+  color: #778582;
+  font-size: 0.68rem;
+  white-space: nowrap;
 }
 
 .accounts-supply-strip-actions {
@@ -2171,19 +2256,42 @@ onUnmounted(() => {
 }
 
 .accounts-supply-strip-actions :deep(.btn) {
-  min-height: 1.9rem;
-  padding: 0.32rem 0.55rem;
+  min-height: 1.75rem;
+  padding: 0.24rem 0.5rem;
+  border-radius: 6px;
   font-size: 0.76rem;
+}
+
+.accounts-routing-window {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.28rem;
+  color: #778582;
+  font-size: 0.68rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.accounts-routing-window-select {
+  min-height: 1.75rem;
+  padding: 0.2rem 1.55rem 0.2rem 0.45rem;
+  border: 1px solid #dce5e2;
+  border-radius: 6px;
+  background: #fff;
+  color: #24322f;
+  font-size: 0.74rem;
+  font-weight: 700;
 }
 
 .accounts-filter-bar {
   align-items: center;
-  gap: 0.45rem;
+  gap: 0.3rem;
+  padding: 0.25rem 0.4rem;
 }
 
 .accounts-filter-controls,
 .accounts-filter-actions {
-  gap: 0.42rem !important;
+  gap: 0.28rem !important;
 }
 
 .accounts-filter-controls :deep(.w-full) {
@@ -2198,12 +2306,12 @@ onUnmounted(() => {
 .accounts-filter-controls :deep(button),
 .accounts-filter-actions :deep(.btn),
 .accounts-filter-actions :deep(button.btn) {
-  min-height: 2rem;
+  min-height: 1.78rem;
   font-size: 0.78rem;
 }
 
 .accounts-filter-actions :deep(.btn) {
-  padding: 0.36rem 0.58rem;
+  padding: 0.24rem 0.5rem;
 }
 
 .account-supply-cell {
@@ -2211,6 +2319,40 @@ onUnmounted(() => {
   gap: 0.25rem;
   min-width: 7.5rem;
   transition: opacity 0.2s ease;
+}
+
+.account-supply-rate {
+  justify-self: end;
+  color: #147d6c;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', monospace;
+  font-size: 0.66rem;
+  font-weight: 700;
+}
+
+.account-routing-telemetry {
+  display: flex;
+  align-items: center;
+  gap: 0.28rem;
+  min-width: 0;
+  color: #657570;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', monospace;
+  font-size: 0.64rem;
+  line-height: 1.1;
+  white-space: nowrap;
+}
+
+.account-routing-telemetry strong {
+  color: #147d6c;
+  font-size: 0.78rem;
+}
+
+.account-routing-telemetry--empty {
+  color: #9aa7a3;
+}
+
+.account-routing-role {
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .account-supply-cell--busy {
@@ -2223,21 +2365,21 @@ onUnmounted(() => {
   grid-template-columns: 1.65rem 1.25rem minmax(1.5rem, 1fr) 1.25rem;
   align-items: center;
   gap: 0.16rem;
-  border-radius: 999px;
+  border-radius: 6px;
   padding: 0.14rem;
-  border: 1px solid rgba(0, 137, 78, 0.1);
-  background: rgba(239, 250, 242, 0.82);
+  border: 1px solid #dce5e2;
+  background: #ffffff;
 }
 
 .account-supply-label {
   padding-left: 0.2rem;
-  color: rgba(3, 47, 28, 0.58);
+  color: #778582;
   font-size: 0.68rem;
   font-weight: 700;
 }
 
 .account-supply-value {
-  color: #032f1c;
+  color: #24322f;
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', monospace;
   font-size: 0.82rem;
   font-weight: 800;
@@ -2250,10 +2392,10 @@ onUnmounted(() => {
   justify-content: center;
   height: 1.18rem;
   width: 1.18rem;
-  border-radius: 999px;
-  color: #00894e;
-  background: rgba(255, 255, 255, 0.9);
-  border: 1px solid rgba(0, 137, 78, 0.12);
+  border-radius: 4px;
+  color: #147d6c;
+  background: #f5faf8;
+  border: 1px solid #dce5e2;
   font-weight: 800;
   line-height: 1;
   transition:
@@ -2263,7 +2405,7 @@ onUnmounted(() => {
 }
 
 .account-supply-step:not(:disabled):hover {
-  background: #00894e;
+  background: #147d6c;
   color: white;
 }
 
@@ -2286,54 +2428,62 @@ onUnmounted(() => {
 }
 
 :global(.dark) .accounts-command-panel {
-  border-color: rgba(255, 255, 255, 0.1);
-  background:
-    radial-gradient(circle at 4% 0%, rgba(238, 195, 73, 0.1), transparent 28%),
-    linear-gradient(135deg, rgba(6, 36, 24, 0.95), rgba(8, 23, 18, 0.94));
-  box-shadow: 0 16px 42px rgba(0, 0, 0, 0.2);
+  border-color: #31423e;
+  background: #17211f;
 }
 
 :global(.dark) .accounts-command-eyebrow,
 :global(.dark) .accounts-command-steps span,
 :global(.dark) .accounts-command-stat {
-  border-color: rgba(255, 255, 255, 0.1);
-  background: rgba(255, 255, 255, 0.065);
+  border-color: #31423e;
+  background: transparent;
 }
 
 :global(.dark) .accounts-supply-strip {
-  border-color: rgba(255, 255, 255, 0.1);
-  background: rgba(8, 23, 18, 0.88);
-  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.16);
+  border-color: #31423e;
+  background: #17211f;
 }
 
 :global(.dark) .accounts-command-copy h2 {
-  color: rgba(255, 255, 255, 0.94);
+  color: #edf5f2;
 }
 
 :global(.dark) .accounts-command-copy p,
 :global(.dark) .accounts-command-steps span,
 :global(.dark) .accounts-command-stat span {
-  color: rgba(255, 255, 255, 0.66);
+  color: #a7b7b2;
 }
 
 :global(.dark) .accounts-supply-strip-copy strong,
 :global(.dark) .account-supply-value {
-  color: rgba(255, 255, 255, 0.92);
+  color: #edf5f2;
+}
+
+:global(.dark) .accounts-supply-legend,
+:global(.dark) .accounts-routing-window,
+:global(.dark) .account-routing-telemetry {
+  color: #a7b7b2;
+}
+
+:global(.dark) .accounts-routing-window-select {
+  border-color: #41544f;
+  background: #20302c;
+  color: #edf5f2;
 }
 
 :global(.dark) .accounts-supply-strip-copy p,
 :global(.dark) .account-supply-label {
-  color: rgba(255, 255, 255, 0.62);
+  color: #a7b7b2;
 }
 
 :global(.dark) .account-supply-control {
-  border-color: rgba(255, 255, 255, 0.1);
-  background: rgba(255, 255, 255, 0.06);
+  border-color: #31423e;
+  background: #20302c;
 }
 
 :global(.dark) .account-supply-step {
-  border-color: rgba(255, 255, 255, 0.12);
-  background: rgba(255, 255, 255, 0.08);
+  border-color: #41544f;
+  background: #17211f;
 }
 
 @media (max-height: 720px) and (min-width: 1024px) {

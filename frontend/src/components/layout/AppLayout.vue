@@ -12,7 +12,11 @@
     <!-- Main Content Area -->
     <div
       class="relative min-h-screen transition-all duration-300"
-      :class="[sidebarCollapsed ? 'lg:ml-[72px]' : 'lg:ml-64']"
+      :class="[
+        sidebarCollapsed
+          ? (isAdmin ? 'lg:ml-[64px]' : 'lg:ml-[72px]')
+          : (isAdmin ? 'lg:ml-56' : 'lg:ml-64')
+      ]"
     >
       <!-- Header -->
       <AppHeader />

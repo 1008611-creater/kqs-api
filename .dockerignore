@@ -35,6 +35,9 @@ outputs/
 *.deb
 *.exe
 *.dll
+tmp-*
+sub2api-*
+frontend-dist-*
 
 # Node modules (will be installed in container)
 frontend/node_modules/
@@ -71,7 +74,18 @@ logs/
 # Temporary files
 tmp/
 temp/
+**/tmp/
+**/temp/
 *.tmp
+**/*.tar
+**/*.tar.gz
+**/*.tgz
+**/*.zip
+**/*.exe
+**/*.bin
+**/postgres_data/
+**/redis_data/
+backend/.tools/
 .codex/
 .tools/
 .wrangler/

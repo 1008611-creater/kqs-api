@@ -5,9 +5,6 @@
         <div class="subscription-shop__intro">
           <p class="subscription-shop__eyebrow">订阅服务</p>
           <h1>订阅套餐</h1>
-          <p>
-            这里只展示日卡、周卡、拼卡和订阅兑换。余额充值请去「购买余额」页面，两个入口分开，避免用户买错。
-          </p>
           <div class="subscription-shop__hero-actions">
             <a class="subscription-shop__primary" :href="LDXP_SHOP_URL" target="_blank" rel="noopener noreferrer" @click="trackOpenShop">
               <Icon name="externalLink" size="sm" />
@@ -663,14 +660,6 @@ onMounted(async () => {
   font-weight: 900;
   letter-spacing: 0;
   line-height: 1;
-}
-
-.subscription-shop__intro > p {
-  max-width: 42rem;
-  margin-top: 1rem;
-  color: rgba(220, 239, 224, 0.68);
-  font-size: 1rem;
-  line-height: 1.75;
 }
 
 .subscription-shop__hero-actions {

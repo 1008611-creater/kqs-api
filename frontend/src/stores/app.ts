@@ -306,7 +306,8 @@ export const useAppStore = defineStore('app', () => {
    * @param force - Force refresh from API
    */
   async function fetchPublicSettings(force = false): Promise<PublicSettings | null> {
-    // Check for injected config from server (eliminates flash)
+    // Keep the server-injected settings as the synchronous first render
+    // source. main.ts hydrates this before mounting the router.
     if (!publicSettingsLoaded.value && !force && window.__APP_CONFIG__) {
       applySettings(window.__APP_CONFIG__)
       return window.__APP_CONFIG__

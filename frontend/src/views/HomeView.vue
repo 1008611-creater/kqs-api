@@ -104,10 +104,6 @@
             >
               {{ siteName }}
             </h1>
-            <p class="mx-auto mb-9 max-w-xl text-lg leading-8 text-primary-900/80 dark:text-white/82 md:text-xl lg:mx-0">
-              {{ siteSubtitle }}
-            </p>
-
             <!-- CTA Button -->
             <div>
               <router-link
@@ -168,9 +164,6 @@
             <h2 class="max-w-md text-2xl font-bold tracking-tight text-primary-950 dark:text-[#f1f7f0] sm:text-3xl">
               {{ t('home.flow.title') }}
             </h2>
-            <p class="mt-4 max-w-lg text-sm leading-7 text-primary-950/65 dark:text-primary-100/68">
-              {{ t('home.features.unifiedGatewayDesc') }}
-            </p>
             <div class="mt-8 grid gap-3 sm:grid-cols-3">
               <div class="access-step">
                 <span>01</span>
@@ -259,7 +252,6 @@ const appStore = useAppStore()
 // Site settings - directly from appStore (already initialized from injected config)
 const siteName = computed(() => appStore.cachedPublicSettings?.site_name || appStore.siteName || '矿泉水API')
 const siteLogo = computed(() => appStore.cachedPublicSettings?.site_logo || appStore.siteLogo || '')
-const siteSubtitle = computed(() => appStore.cachedPublicSettings?.site_subtitle || '矿泉水 AI API 网关平台')
 const docUrl = computed(() => appStore.cachedPublicSettings?.doc_url || appStore.docUrl || '')
 const homeContent = computed(() => appStore.cachedPublicSettings?.home_content || '')
 const safeHomeContentUrl = computed(() => sanitizeUrl(homeContent.value))
@@ -322,17 +314,18 @@ onMounted(() => {
 .home-shell::before {
   z-index: 1;
   background:
-    url('/kqs-mountain-water-texture.fast.jpg?v=20260616-fastbg') center top / cover no-repeat,
-    linear-gradient(180deg, rgba(34, 197, 94, 0.03), transparent 42%, rgba(0, 0, 0, 0.12));
-  opacity: 0.86;
+    linear-gradient(180deg, rgba(2, 16, 12, 0.3) 0%, rgba(3, 24, 18, 0.32) 44%, rgba(2, 15, 12, 0.46) 100%),
+    url('/kqs-mountain-water-gilded-v2.webp?v=20260730-image2') center top / 100% auto no-repeat;
+  opacity: 1;
   mix-blend-mode: normal;
-  mask-image: linear-gradient(180deg, #000 0%, rgba(0, 0, 0, 0.72) 64%, rgba(0, 0, 0, 0.22) 100%);
+  filter: saturate(0.82) contrast(1.05) brightness(0.88);
 }
 
 .home-shell::after {
   z-index: 1;
-  background: radial-gradient(ellipse at 50% 52%, rgba(0, 0, 0, 0.18), transparent 36rem);
-  opacity: 0.72;
+  background:
+    radial-gradient(ellipse at 50% 34%, transparent, rgba(2, 12, 9, 0.1) 68%, rgba(2, 12, 9, 0.24) 100%),
+    linear-gradient(180deg, rgba(2, 12, 9, 0.03), transparent 44%, rgba(2, 12, 9, 0.12));
 }
 
 .home-shell header nav > div:first-child,

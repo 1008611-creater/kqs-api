@@ -31,7 +31,26 @@ describe('ccswitchImport utils', () => {
     expect(params.get('app')).toBe('codex')
     expect(params.get('endpoint')).toBe(baseInput.baseUrl)
     expect(params.get('model')).toBe(OPENAI_CC_SWITCH_CODEX_MODEL)
+    expect(params.get('model')).toBe('gpt-5.6-terra')
+    expect(params.get('configFormat')).toBe('json')
+    const codexConfig = JSON.parse(new TextDecoder().decode(Uint8Array.from(atob(params.get('config') || ''), char => char.charCodeAt(0))))
+    expect(codexConfig.config).toContain('wire_api = "responses"')
+    expect(codexConfig.config).toContain(`base_url = "${baseInput.baseUrl}"`)
     expect(atob(params.get('usageScript') || '')).toBe(baseInput.usageScript)
+  })
+
+  it('encodes non-ASCII provider names without breaking the import link', () => {
+    const deeplink = buildCcSwitchImportDeeplink({
+      ...baseInput,
+      providerName: '矿泉水 API',
+      platform: 'openai',
+      clientType: 'claude'
+    })
+    const params = paramsFromDeeplink(deeplink)
+    const codexConfig = JSON.parse(new TextDecoder().decode(Uint8Array.from(atob(params.get('config') || ''), char => char.charCodeAt(0))))
+
+    expect(params.get('name')).toBe('矿泉水 API')
+    expect(codexConfig.config).toContain('矿泉水 API')
   })
 
   it.each([
@@ -49,6 +68,7 @@ describe('ccswitchImport utils', () => {
     expect(params.get('app')).toBe(app)
     expect(params.get('endpoint')).toBe(baseInput.baseUrl)
     expect(params.has('model')).toBe(false)
+    expect(params.has('config')).toBe(false)
   })
 
   it('keeps Antigravity imports on the selected client endpoint without a model parameter', () => {

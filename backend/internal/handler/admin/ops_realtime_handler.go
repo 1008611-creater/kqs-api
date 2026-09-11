@@ -171,6 +171,52 @@ func parseOpsRealtimeWindow(v string) (time.Duration, string, bool) {
 	}
 }
 
+func parseOpsAccountRoutingWindow(v string) (time.Duration, string, bool) {
+	switch strings.ToLower(strings.TrimSpace(v)) {
+	case "", "1h":
+		return time.Hour, "1h", true
+	case "15m":
+		return 15 * time.Minute, "15m", true
+	case "6h":
+		return 6 * time.Hour, "6h", true
+	case "24h":
+		return 24 * time.Hour, "24h", true
+	default:
+		return 0, "", false
+	}
+}
+
+// GetAccountRoutingStats returns real request share and health metrics per account.
+// GET /api/v1/admin/ops/account-routing
+func (h *OpsHandler) GetAccountRoutingStats(c *gin.Context) {
+	if h.opsService == nil {
+		response.Error(c, http.StatusServiceUnavailable, "Ops service not available")
+		return
+	}
+	window, label, ok := parseOpsAccountRoutingWindow(c.Query("window"))
+	if !ok {
+		response.BadRequest(c, "Invalid window")
+		return
+	}
+	platform := strings.TrimSpace(c.Query("platform"))
+	var groupID *int64
+	if value := strings.TrimSpace(c.Query("group_id")); value != "" {
+		id, err := strconv.ParseInt(value, 10, 64)
+		if err != nil || id <= 0 {
+			response.BadRequest(c, "Invalid group_id")
+			return
+		}
+		groupID = &id
+	}
+
+	stats, err := h.opsService.GetAccountRoutingStats(c.Request.Context(), window, label, platform, groupID)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, stats)
+}
+
 // GetRealtimeTrafficSummary returns QPS/TPS current/peak/avg for the selected window.
 // GET /api/v1/admin/ops/realtime-traffic
 //

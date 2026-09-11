@@ -5,9 +5,6 @@
         <div class="purchase-market__intro">
           <p class="purchase-market__eyebrow">余额购买</p>
           <h1>购买余额</h1>
-          <p>
-            余额卡和订阅卡分开购买。这里展示的是一次性余额商品，付款在链动小铺完成，回到本站兑换卡密后余额立即进入账户。
-          </p>
           <div class="purchase-market__actions">
             <a class="purchase-market__primary" :href="LDXP_SHOP_URL" target="_blank" rel="noopener noreferrer" @click="trackOpenShop">
               <Icon name="externalLink" size="sm" />
@@ -172,14 +169,6 @@ function trackProduct(item: LdxpPackage) {
   font-weight: 900;
   letter-spacing: 0;
   line-height: 1;
-}
-
-.purchase-market__intro > p {
-  max-width: 42rem;
-  margin-top: 1rem;
-  color: rgba(220, 239, 224, 0.68);
-  font-size: 1rem;
-  line-height: 1.75;
 }
 
 .purchase-market__actions {

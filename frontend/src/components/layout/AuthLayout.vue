@@ -6,7 +6,6 @@
           <BrandLogo :src="siteLogo || defaultLogo" :alt="siteName" variant="auth" />
           <span>
             <strong>{{ siteName }}</strong>
-            <small>{{ siteSubtitle }}</small>
           </span>
         </router-link>
 
@@ -36,7 +35,6 @@ const appStore = useAppStore()
 
 const siteName = computed(() => appStore.cachedPublicSettings?.site_name || appStore.siteName || '矿泉水API')
 const siteLogo = computed(() => sanitizeUrl(appStore.siteLogo || '', { allowRelative: true, allowDataUrl: true }))
-const siteSubtitle = computed(() => appStore.cachedPublicSettings?.site_subtitle || '矿泉水 AI API 网关平台')
 const defaultLogo = '/kqs-water-logo.svg?v=20260612'
 const currentYear = computed(() => new Date().getFullYear())
 
@@ -67,13 +65,14 @@ onMounted(() => {
 
 .auth-shell::before {
   background:
-    url('/kqs-mountain-water-texture.fast.jpg?v=20260616-fastbg') center top / cover no-repeat,
-    linear-gradient(180deg, rgba(34, 197, 94, 0.03), transparent 42%, rgba(0, 0, 0, 0.12));
-  opacity: 0.88;
+    linear-gradient(180deg, rgba(2, 16, 12, 0.36) 0%, rgba(3, 24, 18, 0.4) 46%, rgba(2, 15, 12, 0.52) 100%),
+    url('/kqs-mountain-water-gilded-v2.webp?v=20260730-image2') center top / 100% auto no-repeat;
+  opacity: 1;
+  filter: saturate(0.82) contrast(1.05) brightness(0.86);
 }
 
 .auth-shell::after {
-  background: radial-gradient(ellipse at 50% 45%, transparent 0%, rgba(2, 12, 9, 0.18) 72%, rgba(2, 12, 9, 0.42) 100%);
+  background: radial-gradient(ellipse at 50% 42%, rgba(2, 12, 9, 0.04), rgba(2, 12, 9, 0.14) 70%, rgba(2, 12, 9, 0.3) 100%);
 }
 
 .auth-main {
@@ -104,8 +103,7 @@ onMounted(() => {
   min-width: 0;
 }
 
-.auth-brand strong,
-.auth-brand small {
+.auth-brand strong {
   display: block;
 }
 
@@ -115,12 +113,6 @@ onMounted(() => {
   font-weight: 900;
   letter-spacing: 0;
   line-height: 1.1;
-}
-
-.auth-brand small {
-  margin-top: 0.18rem;
-  color: rgba(220, 239, 224, 0.68);
-  font-size: 0.78rem;
 }
 
 .auth-brand :deep(.brand-logo) {

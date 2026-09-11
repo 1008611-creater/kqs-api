@@ -185,3 +185,4 @@ local-secrets/
 /sub2api-*
 /service-test.*
 /backend/sub2api-*
+/backend/frontend-dist-*.tar.gz

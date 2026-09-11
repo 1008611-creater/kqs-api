@@ -11,7 +11,7 @@ const (
 	PublicChannelStatusModelID          = "gpt-5.5"
 	PublicChannelStatusDisplayName      = "GPT-plus"
 	PublicChannelStatusPro4DisplayName  = "GPT-pro"
-	PublicChannelStatusGPT56DisplayName = "GPT-5.6"
+	PublicChannelStatusGPT56DisplayName = "GPT-5.6-sol"
 	PublicChannelStatusGPT56ModelID     = "gpt-5.6"
 	publicChannelStatusCronExpression   = "*/5 * * * *"
 	publicChannelStatusMaxResults       = 240
@@ -45,6 +45,7 @@ var PublicChannelStatusGroupNames = []string{
 
 var PublicChannelStatusPro4GroupNames = []string{
 	"codex-pro-四倍",
+	"codex-pro-3.5倍",
 	"限时福利codex-pro-4倍",
 	"pro4倍",
 	"pro 4倍",
@@ -57,14 +58,15 @@ var PublicChannelStatusPro4GroupNames = []string{
 	"GPTPlus Pro4倍",
 }
 
-var PublicChannelStatusPro4AccountNames = []string{
-	"虾",
-}
+// Keep the public Pro status aligned with every currently active account in
+// the matched Pro groups. The repository excludes stopped or unschedulable
+// accounts, so the status signal is no longer pinned to one named account.
+var PublicChannelStatusPro4AccountNames = []string{}
 
 // The Grox trial is deliberately pinned to its only account. This keeps the
 // public health signal aligned with the group users actually invoke.
 var PublicChannelStatusGPT56GroupNames = []string{
-	"GPT-5.6 3倍",
+	"GPT-5.6 2倍",
 }
 
 var PublicChannelStatusGPT56GroxAccountNames = []string{

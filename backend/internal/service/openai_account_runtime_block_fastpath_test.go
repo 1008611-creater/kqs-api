@@ -4,11 +4,14 @@ package service
 
 import (
 	"context"
+	"errors"
 	"net/http"
+	"net/http/httptest"
 	"testing"
 	"time"
 
 	"github.com/Wei-Shaw/sub2api/internal/config"
+	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/require"
 )
 
@@ -24,6 +27,57 @@ func TestOpenAI429FastPath_MarksOAuthAccountCoolingDown(t *testing.T) {
 	require.False(t, apiKeyShouldDisable)
 	require.True(t, svc.isOpenAIAccountRuntimeBlocked(account))
 	require.False(t, svc.isOpenAIAccountRuntimeBlocked(apiKeyAccount))
+}
+
+func TestOpenAI5xxFastPath_TemporarilyBlocksAnyOpenAIAccount(t *testing.T) {
+	svc := &OpenAIGatewayService{}
+	account := &Account{ID: 48, Platform: PlatformOpenAI, Type: AccountTypeAPIKey}
+
+	shouldDisable := svc.handleOpenAIAccountUpstreamError(context.Background(), account, http.StatusBadGateway, http.Header{}, nil)
+
+	require.False(t, shouldDisable)
+	require.True(t, svc.isOpenAIAccountRuntimeBlocked(account))
+}
+
+func TestOpenAITransient400FastPath_TemporarilyBlocksOnlyUpstreamCapacityError(t *testing.T) {
+	svc := &OpenAIGatewayService{}
+	account := &Account{ID: 481, Platform: PlatformOpenAI, Type: AccountTypeAPIKey}
+
+	shouldDisable := svc.handleOpenAIAccountUpstreamError(
+		context.Background(),
+		account,
+		http.StatusBadRequest,
+		http.Header{},
+		[]byte(`{"error":{"message":"Selected model is at capacity. Please try a different model."}}`),
+	)
+	require.True(t, shouldDisable)
+	require.True(t, svc.isOpenAIAccountRuntimeBlocked(account))
+
+	validRequestAccount := &Account{ID: 482, Platform: PlatformOpenAI, Type: AccountTypeAPIKey}
+	shouldDisable = svc.handleOpenAIAccountUpstreamError(
+		context.Background(),
+		validRequestAccount,
+		http.StatusBadRequest,
+		http.Header{},
+		[]byte(`{"error":{"message":"Missing required parameter: 'instructions'"}}`),
+	)
+	require.False(t, shouldDisable)
+	require.False(t, svc.isOpenAIAccountRuntimeBlocked(validRequestAccount))
+}
+
+func TestOpenAITransportFailure_ReturnsFailoverErrorWithoutWritingResponse(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	rec := httptest.NewRecorder()
+	ctx, _ := gin.CreateTestContext(rec)
+	svc := &OpenAIGatewayService{}
+	account := &Account{ID: 49, Platform: PlatformOpenAI, Type: AccountTypeAPIKey}
+
+	failoverErr := svc.newOpenAITransportFailoverError(context.Background(), ctx, account, errors.New("dial upstream failed"), false)
+
+	require.NotNil(t, failoverErr)
+	require.Equal(t, http.StatusBadGateway, failoverErr.StatusCode)
+	require.Empty(t, rec.Body.String(), "the outer handler must be able to switch accounts before a response starts")
+	require.True(t, svc.isOpenAIAccountRuntimeBlocked(account))
 }
 
 func TestOpenAIRuntimeBlock_AppliesToOpenAIAPIKeyWhenRateLimitServiceStopsScheduling(t *testing.T) {

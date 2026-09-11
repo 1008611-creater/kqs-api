@@ -33,9 +33,13 @@ type OpsErrorLog struct {
 
 	Severity string `json:"severity"`
 
-	StatusCode int    `json:"status_code"`
-	Platform   string `json:"platform"`
-	Model      string `json:"model"`
+	// StatusCode is the final response status returned to the client. It must not
+	// be replaced with an intermediate upstream failure after a successful retry.
+	StatusCode         int    `json:"status_code"`
+	UpstreamStatusCode *int   `json:"upstream_status_code,omitempty"`
+	Recovered          bool   `json:"recovered"`
+	Platform           string `json:"platform"`
+	Model              string `json:"model"`
 
 	Resolved           bool       `json:"resolved"`
 	ResolvedAt         *time.Time `json:"resolved_at"`

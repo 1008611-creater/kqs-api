@@ -2587,6 +2587,30 @@ func (s *adminServiceImpl) UpdateAccount(ctx context.Context, id int64, input *U
 	return updated, nil
 }
 
+type accountGroupPriorityUpdater interface {
+	UpdateGroupPriority(ctx context.Context, accountID, groupID int64, priority int) error
+}
+
+// UpdateAccountGroupPriority updates the priority override for one account in one group.
+// It is deliberately kept out of the broad AdminService interface so existing test
+// doubles and non-Ent adapters remain source-compatible.
+func (s *adminServiceImpl) UpdateAccountGroupPriority(ctx context.Context, accountID, groupID int64, priority int) (*Account, error) {
+	if accountID <= 0 || groupID <= 0 {
+		return nil, errors.New("account_id and group_id must be positive")
+	}
+	if priority <= 0 {
+		return nil, errors.New("priority must be positive")
+	}
+	updater, ok := s.accountRepo.(accountGroupPriorityUpdater)
+	if !ok {
+		return nil, errors.New("account group priority update is not available")
+	}
+	if err := updater.UpdateGroupPriority(ctx, accountID, groupID, priority); err != nil {
+		return nil, err
+	}
+	return s.accountRepo.GetByID(ctx, accountID)
+}
+
 // BulkUpdateAccounts updates multiple accounts in one request.
 // It merges credentials/extra keys instead of overwriting the whole object.
 func (s *adminServiceImpl) BulkUpdateAccounts(ctx context.Context, input *BulkUpdateAccountsInput) (*BulkUpdateAccountsResult, error) {

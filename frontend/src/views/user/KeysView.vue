@@ -37,7 +37,6 @@
             <div class="keys-hero-copy">
               <span class="keys-eyebrow">{{ t('keys.starter.eyebrow') }}</span>
               <h2 class="keys-hero-title">{{ t('keys.starter.title') }}</h2>
-              <p class="keys-hero-description">{{ t('keys.starter.description') }}</p>
               <div class="keys-hero-steps" :aria-label="t('keys.starter.stepsLabel')">
                 <span class="keys-hero-step">
                   <b>01</b>
@@ -1720,14 +1719,10 @@ const executeCcsImport = (row: ApiKey, clientType: CcSwitchClientType) => {
 
   try {
     window.open(deeplink, '_self')
-
-    // Check if the protocol handler worked by detecting if we're still focused
-    setTimeout(() => {
-      if (document.hasFocus()) {
-        // Still focused means the protocol handler likely failed
-        appStore.showError(t('keys.ccSwitchNotInstalled'))
-      }
-    }, 100)
+    // A custom protocol does not expose a reliable success signal to the
+    // browser. Keeping focus is normal when the desktop app is already open,
+    // so do not turn that state into a false installation error.
+    appStore.showInfo(t('keys.ccSwitchImportStarted'))
   } catch (error) {
     appStore.showError(t('keys.ccSwitchNotInstalled'))
   }
@@ -1760,8 +1755,8 @@ onUnmounted(() => {
 
 <style scoped>
 .keys-page-layout {
-  --keys-panel: rgba(5, 29, 24, 0.78);
-  --keys-soft: rgba(3, 22, 18, 0.72);
+  --keys-panel: transparent;
+  --keys-soft: rgba(3, 22, 18, 0.28);
   --keys-line: rgba(43, 132, 83, 0.38);
   --keys-text: #edf7ee;
   --keys-muted: rgba(220, 239, 224, 0.64);
@@ -1775,7 +1770,7 @@ onUnmounted(() => {
   border-radius: 8px;
   background: var(--keys-panel);
   padding: 0.78rem;
-  box-shadow: 0 18px 54px rgba(0, 0, 0, 0.22);
+  box-shadow: none;
 }
 
 .keys-page-layout :deep(.layout-section-scrollable) {
@@ -1796,20 +1791,20 @@ onUnmounted(() => {
   border: 1px solid var(--keys-line);
   border-radius: 8px;
   background: var(--keys-panel);
-  box-shadow: 0 18px 54px rgba(0, 0, 0, 0.22);
+  box-shadow: none;
 }
 
 .keys-table-shell :deep(table) {
   min-width: 1085px;
-  background: rgba(5, 29, 24, 0.96) !important;
+  background: transparent !important;
 }
 
 .keys-table-shell :deep(.table-header),
 .keys-table-shell :deep(thead),
 .keys-table-shell :deep(.bg-gray-50),
 .keys-table-shell :deep(.sticky-header-cell) {
-  background: linear-gradient(180deg, rgba(6, 39, 30, 0.98), rgba(3, 22, 18, 0.98)) !important;
-  background-color: rgba(3, 22, 18, 0.98) !important;
+  background: rgba(3, 22, 18, 0.42) !important;
+  background-color: rgba(3, 22, 18, 0.42) !important;
 }
 
 .keys-table-shell :deep(thead th),
@@ -1827,26 +1822,26 @@ onUnmounted(() => {
 .keys-table-shell :deep(thead th:hover),
 .keys-table-shell :deep(.sticky-header-cell:hover),
 .keys-table-shell :deep(.cursor-pointer:hover) {
-  background: rgba(12, 58, 43, 0.98) !important;
-  background-color: rgba(12, 58, 43, 0.98) !important;
+  background: rgba(12, 58, 43, 0.48) !important;
+  background-color: rgba(12, 58, 43, 0.48) !important;
 }
 
 .keys-table-shell :deep(.table-body),
 .keys-table-shell :deep(tbody),
 .keys-table-shell :deep(.bg-white) {
-  background: rgba(5, 29, 24, 0.96) !important;
+  background: transparent !important;
 }
 
 .keys-table-shell :deep(tbody tr[data-row-id]) {
-  background: rgba(7, 35, 29, 0.98) !important;
+  background: rgba(3, 22, 18, 0.12) !important;
 }
 
 .keys-table-shell :deep(tbody tr[data-row-id]:nth-child(even)) {
-  background: rgba(5, 29, 24, 0.98) !important;
+  background: transparent !important;
 }
 
 .keys-table-shell :deep(tbody tr[data-row-id]:hover) {
-  background: rgba(12, 58, 43, 0.98) !important;
+  background: rgba(12, 58, 43, 0.42) !important;
 }
 
 .keys-table-shell :deep(tbody td) {
@@ -1855,7 +1850,7 @@ onUnmounted(() => {
 
 .keys-table-shell :deep(.space-y-3 > .rounded-lg) {
   border-color: rgba(43, 132, 83, 0.32) !important;
-  background: rgba(5, 29, 24, 0.58) !important;
+  background: rgba(3, 22, 18, 0.28) !important;
   color: var(--keys-text);
 }
 
@@ -1890,7 +1885,7 @@ onUnmounted(() => {
 .keys-page-layout :deep(.layout-section-fixed > .flex.items-center.justify-between) {
   border-color: rgba(43, 132, 83, 0.32) !important;
   border-radius: 8px;
-  background: rgba(5, 29, 24, 0.86) !important;
+  background: rgba(3, 22, 18, 0.24) !important;
   color: var(--keys-text);
 }
 
@@ -1905,7 +1900,7 @@ onUnmounted(() => {
 
 .keys-page-layout :deep(.layout-section-fixed > .flex.items-center.justify-between button) {
   border-color: rgba(43, 132, 83, 0.36) !important;
-  background: rgba(3, 22, 18, 0.72) !important;
+  background: rgba(3, 22, 18, 0.36) !important;
   color: rgba(220, 239, 224, 0.72) !important;
 }
 
@@ -1930,7 +1925,7 @@ onUnmounted(() => {
 .keys-page-layout :deep(.select-trigger),
 .keys-page-layout :deep([role="combobox"]) {
   border-color: var(--keys-line);
-  background-color: rgba(3, 22, 18, 0.72);
+  background-color: rgba(3, 22, 18, 0.36);
   color: var(--keys-text);
 }
 
@@ -1966,7 +1961,7 @@ onUnmounted(() => {
   max-width: 11rem;
   overflow: hidden;
   border-color: rgba(43, 132, 83, 0.3);
-  background: rgba(3, 22, 18, 0.68);
+  background: rgba(3, 22, 18, 0.34);
   color: #86efac;
   text-align: left;
   text-overflow: ellipsis;
@@ -2014,24 +2009,12 @@ onUnmounted(() => {
   border-radius: 8px;
   padding: 1rem 1.15rem;
   border: 1px solid var(--keys-line);
-  background:
-    radial-gradient(circle at 12% 2%, rgba(34, 197, 94, 0.15), transparent 32%),
-    radial-gradient(circle at 86% 16%, rgba(238, 195, 73, 0.09), transparent 24%),
-    var(--keys-panel);
-  box-shadow: 0 18px 54px rgba(0, 0, 0, 0.22);
+  background: transparent;
+  box-shadow: none;
 }
 
 .keys-hero-panel::after {
-  content: '';
-  position: absolute;
-  right: -3rem;
-  top: -5rem;
-  width: 14rem;
-  height: 14rem;
-  border-radius: 999px;
-  border: 1px solid rgba(34, 197, 94, 0.18);
-  background: rgba(34, 197, 94, 0.08);
-  filter: blur(0.4px);
+  display: none;
 }
 
 .keys-hero-copy,
@@ -2046,7 +2029,7 @@ onUnmounted(() => {
   border-radius: 999px;
   padding: 0.28rem 0.62rem;
   border: 1px solid var(--keys-line);
-  background: rgba(3, 22, 18, 0.58);
+  background: rgba(3, 22, 18, 0.28);
   color: #86efac;
   font-size: 0.68rem;
   font-weight: 800;
@@ -2060,14 +2043,6 @@ onUnmounted(() => {
   font-size: clamp(1.18rem, 1.55vw, 1.65rem);
   font-weight: 850;
   letter-spacing: 0;
-}
-
-.keys-hero-description {
-  margin-top: 0.3rem;
-  max-width: 44rem;
-  color: var(--keys-muted);
-  font-size: 0.86rem;
-  line-height: 1.65;
 }
 
 .keys-hero-steps {
@@ -2084,7 +2059,7 @@ onUnmounted(() => {
   border-radius: 999px;
   padding: 0.38rem 0.62rem;
   border: 1px solid rgba(43, 132, 83, 0.28);
-  background: rgba(3, 22, 18, 0.56);
+  background: rgba(3, 22, 18, 0.26);
   color: rgba(220, 239, 224, 0.74);
   font-size: 0.78rem;
   font-weight: 650;
@@ -2112,7 +2087,7 @@ onUnmounted(() => {
   border-radius: 8px;
   padding: 0.68rem 0.82rem;
   border: 1px solid rgba(43, 132, 83, 0.3);
-  background: rgba(3, 22, 18, 0.58);
+  background: rgba(3, 22, 18, 0.28);
   color: var(--keys-muted);
 }
 
@@ -2172,10 +2147,8 @@ onUnmounted(() => {
 
 :global(.dark) .keys-hero-panel {
   border-color: rgba(255, 255, 255, 0.1);
-  background:
-    radial-gradient(circle at 8% 12%, rgba(238, 195, 73, 0.12), transparent 30%),
-    linear-gradient(135deg, rgba(6, 36, 24, 0.96), rgba(8, 23, 18, 0.94));
-  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.22);
+  background: transparent;
+  box-shadow: none;
 }
 
 :global(.dark) .keys-eyebrow,
@@ -2190,7 +2163,6 @@ onUnmounted(() => {
   color: rgba(255, 255, 255, 0.94);
 }
 
-:global(.dark) .keys-hero-description,
 :global(.dark) .keys-hero-step,
 :global(.dark) .key-create-guide__item p {
   color: rgba(255, 255, 255, 0.68);
@@ -2229,11 +2201,6 @@ onUnmounted(() => {
 
   .keys-hero-title {
     font-size: 1.12rem;
-  }
-
-  .keys-hero-description {
-    font-size: 0.82rem;
-    line-height: 1.55;
   }
 
   .keys-hero-step {

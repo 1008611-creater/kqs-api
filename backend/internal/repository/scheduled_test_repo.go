@@ -75,7 +75,7 @@ func (r *scheduledTestPlanRepository) EnsurePublicStatusPlans(ctx context.Contex
 	}
 	result, err := r.db.ExecContext(ctx, `
 		INSERT INTO scheduled_test_plans (account_id, model_id, cron_expression, enabled, max_results, auto_recover, next_run_at, created_at, updated_at)
-		SELECT DISTINCT a.id, $2, $3, true, $4::int, true, $5::timestamptz, NOW(), NOW()
+		SELECT DISTINCT a.id, $2, $3, true, $4::int, false, $5::timestamptz, NOW(), NOW()
 		FROM accounts a
 		JOIN account_groups ag ON ag.account_id = a.id
 		JOIN groups g ON g.id = ag.group_id
@@ -106,7 +106,6 @@ func (r *scheduledTestPlanRepository) EnsurePublicStatusPlans(ctx context.Contex
 		SET cron_expression = $3,
 		    enabled = true,
 		    max_results = $4,
-		    auto_recover = true,
 		    next_run_at = CASE
 		        WHEN p.enabled = false OR p.next_run_at IS NULL THEN $5
 		        ELSE p.next_run_at
@@ -215,6 +214,46 @@ func (r *scheduledTestResultRepository) ListByPlanID(ctx context.Context, planID
 		results = append(results, r)
 	}
 	return results, rows.Err()
+}
+
+func (r *scheduledTestResultRepository) GetRecentAccountTelemetry(ctx context.Context, accountIDs []int64, now time.Time) (map[int64]service.ScheduledTestAccountTelemetry, error) {
+	result := make(map[int64]service.ScheduledTestAccountTelemetry)
+	if len(accountIDs) == 0 {
+		return result, nil
+	}
+
+	rows, err := r.db.QueryContext(ctx, `
+		WITH recent AS (
+			SELECT p.account_id, r.status, r.latency_ms, r.created_at,
+				ROW_NUMBER() OVER (PARTITION BY p.account_id ORDER BY r.created_at DESC) AS rn
+			FROM scheduled_test_plans p
+			JOIN scheduled_test_results r ON r.plan_id = p.id
+			WHERE p.enabled = true
+			  AND p.account_id = ANY($1)
+			  AND r.created_at >= $2::timestamptz - INTERVAL '10 minutes'
+		)
+		SELECT account_id,
+			COUNT(*)::int AS sample_count,
+			COALESCE(AVG(CASE WHEN status = 'success' THEN 1.0 ELSE 0.0 END), 0) AS success_rate,
+			COALESCE(AVG(latency_ms) FILTER (WHERE status = 'success' AND latency_ms > 0), 0) AS avg_latency_ms,
+			MAX(created_at) AS last_checked_at
+		FROM recent
+		WHERE rn <= 4
+		GROUP BY account_id
+	`, pq.Array(accountIDs), now)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = rows.Close() }()
+
+	for rows.Next() {
+		var item service.ScheduledTestAccountTelemetry
+		if err := rows.Scan(&item.AccountID, &item.SampleCount, &item.SuccessRate, &item.AverageLatencyMs, &item.LastCheckedAt); err != nil {
+			return nil, err
+		}
+		result[item.AccountID] = item
+	}
+	return result, rows.Err()
 }
 
 func (r *scheduledTestResultRepository) GetPublicChannelStatusStats(ctx context.Context, groupNames []string, accountNames []string, modelID string, now time.Time, recentLimit int) (*service.PublicChannelStatusStats, error) {

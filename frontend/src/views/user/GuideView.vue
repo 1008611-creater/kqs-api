@@ -5,10 +5,6 @@
         <div class="guide-hero__content">
           <p class="guide-kicker">KQS API GUIDE</p>
           <h1 class="guide-title">矿泉水API 使用教程</h1>
-          <p class="guide-lead">
-            这里把购买卡密、兑换余额、创建 Key、导入 CCSwitch、重启 Codex、联系客服和服务规则放在一处。
-            新同学按这个顺序走，不需要手动找配置文件。
-          </p>
         </div>
         <button
           type="button"
@@ -334,14 +330,6 @@ const ccsMiniSteps = [
   font-weight: 900;
   letter-spacing: 0;
   line-height: 0.98;
-}
-
-.guide-lead {
-  margin: 0.85rem 0 0;
-  max-width: 58rem;
-  color: rgba(220, 239, 224, 0.68);
-  font-size: 0.95rem;
-  line-height: 1.75;
 }
 
 .guide-contact {
@@ -815,7 +803,6 @@ const ccsMiniSteps = [
   color: #f8fff9;
 }
 
-:global(.dark) .guide-lead,
 :global(.dark) .guide-contact p,
 :global(.dark) .guide-panel p,
 :global(.dark) .guide-rules p,

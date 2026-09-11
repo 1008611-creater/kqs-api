@@ -5,17 +5,40 @@ import (
 	"strings"
 )
 
+const openAIBaseURLNoV1QueryKey = "__sub2api_openai_no_v1"
+
 func buildOpenAIEndpointURL(base string, endpoint string) string {
 	normalized := strings.TrimRight(strings.TrimSpace(base), "/")
+	forceNoV1 := false
+	if parsed, err := url.Parse(normalized); err == nil && parsed.Scheme != "" && parsed.Host != "" {
+		query := parsed.Query()
+		if query.Get(openAIBaseURLNoV1QueryKey) == "1" {
+			forceNoV1 = true
+			query.Del(openAIBaseURLNoV1QueryKey)
+			parsed.RawQuery = query.Encode()
+			normalized = strings.TrimRight(parsed.String(), "/")
+		}
+	}
 	endpoint = "/" + strings.TrimLeft(strings.TrimSpace(endpoint), "/")
 	relative := strings.TrimPrefix(endpoint, "/v1")
 	if strings.HasSuffix(normalized, endpoint) || strings.HasSuffix(normalized, relative) {
 		return normalized
 	}
-	if openAIBaseURLHasVersionSuffix(normalized) {
+	if forceNoV1 || openAIBaseURLHasVersionSuffix(normalized) {
 		return normalized + relative
 	}
 	return normalized + endpoint
+}
+
+func appendOpenAIBaseURLNoV1Marker(base string) string {
+	parsed, err := url.Parse(strings.TrimSpace(base))
+	if err != nil || parsed.Scheme == "" || parsed.Host == "" {
+		return base
+	}
+	query := parsed.Query()
+	query.Set(openAIBaseURLNoV1QueryKey, "1")
+	parsed.RawQuery = query.Encode()
+	return parsed.String()
 }
 
 func openAIBaseURLHasVersionSuffix(raw string) bool {

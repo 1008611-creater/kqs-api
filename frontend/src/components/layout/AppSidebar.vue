@@ -2,8 +2,13 @@
   <aside
     class="sidebar"
     :class="[
-      sidebarCollapsed ? 'w-[72px]' : 'w-64',
-      { '-translate-x-full lg:translate-x-0': !mobileOpen }
+      sidebarCollapsed
+        ? (isAdmin ? 'w-[64px]' : 'w-[72px]')
+        : (isAdmin ? 'w-56' : 'w-64'),
+      {
+        'sidebar-admin': isAdmin,
+        '-translate-x-full lg:translate-x-0': !mobileOpen
+      }
     ]"
   >
     <!-- Logo/Brand -->
@@ -144,7 +149,7 @@
     </nav>
 
     <!-- Bottom Section -->
-    <div class="mt-auto border-t border-white/10 p-3">
+    <div class="sidebar-footer mt-auto border-t border-white/10">
       <!-- Collapse Button -->
       <button
         @click="toggleSidebar"
@@ -592,45 +597,41 @@ const customMenuItemsForAdmin = computed(() => {
 // Admin navigation items
 const adminNavItems = computed((): NavItem[] => {
   const baseItems: NavItem[] = [
-    { path: '/admin/dashboard', label: t('nav.dashboard'), icon: DashboardIcon },
-    { path: '/admin/ops', label: t('nav.ops'), icon: ChartIcon, featureFlag: flagOpsMonitoring },
-    { path: '/admin/users', label: t('nav.users'), icon: UsersIcon, hideInSimpleMode: true },
-    { path: '/admin/groups', label: t('nav.groups'), icon: FolderIcon, hideInSimpleMode: true },
-    { path: '/admin/accounts', label: t('nav.accounts'), icon: GlobeIcon },
-    { path: '/admin/channel-speed', label: t('nav.channelSpeed'), icon: ChartIcon },
-    { path: '/admin/announcements', label: t('nav.announcements'), icon: BellIcon },
-    { path: '/admin/proxies', label: t('nav.proxies'), icon: ServerIcon },
-    { path: '/admin/risk-control', label: t('nav.riskControl'), icon: ShieldIcon, hideInSimpleMode: true, featureFlag: flagRiskControl },
-    { path: '/admin/subscriptions', label: t('nav.subscriptions'), icon: TicketIcon, hideInSimpleMode: true },
-    { path: '/admin/redeem', label: t('nav.redeemCodes'), icon: TicketIcon, hideInSimpleMode: true },
-    { path: '/admin/promo-codes', label: t('nav.promoCodes'), icon: GiftIcon, hideInSimpleMode: true },
+    { path: '/admin/dashboard', label: '经营概览', icon: DashboardIcon },
+    { path: '/admin/ops', label: '运维处置', icon: ChartIcon, featureFlag: flagOpsMonitoring },
     {
-      path: '/admin/affiliates',
-      label: t('nav.affiliateManagement'),
-      icon: UsersIcon,
-      hideInSimpleMode: true,
-      expandOnly: true,
-      featureFlag: flagAffiliate,
+      path: '/admin/supply', label: '渠道供给', icon: GlobeIcon, expandOnly: true,
       children: [
-        { path: '/admin/affiliates/invites', label: t('nav.affiliateInviteRecords'), icon: UsersIcon },
-        { path: '/admin/affiliates/rebates', label: t('nav.affiliateRebateRecords'), icon: OrderIcon },
-        { path: '/admin/affiliates/transfers', label: t('nav.affiliateTransferRecords'), icon: CreditCardIcon },
-      ],
+        { path: '/admin/accounts', label: t('nav.accounts'), icon: GlobeIcon },
+        { path: '/admin/channel-speed', label: t('nav.channelSpeed'), icon: ChartIcon },
+        { path: '/admin/proxies', label: t('nav.proxies'), icon: ServerIcon }
+      ]
+    },
+    { path: '/admin/groups', label: '分组与模型', icon: FolderIcon, hideInSimpleMode: true },
+    {
+      path: '/admin/entitlements', label: '订阅与兑换', icon: TicketIcon, expandOnly: true, hideInSimpleMode: true,
+      children: [
+        { path: '/admin/subscriptions', label: t('nav.subscriptions'), icon: TicketIcon },
+        { path: '/admin/redeem', label: t('nav.redeemCodes'), icon: TicketIcon },
+        { path: '/admin/promo-codes', label: t('nav.promoCodes'), icon: GiftIcon }
+      ]
     },
     {
-      path: '/admin/orders',
-      label: t('nav.orderManagement'),
-      icon: OrderIcon,
-      hideInSimpleMode: true,
-      expandOnly: true,
-      featureFlag: flagAdminPayment,
+      path: '/admin/settings-hub', label: '系统设置', icon: CogIcon, expandOnly: true,
       children: [
-        { path: '/admin/orders/dashboard', label: t('nav.paymentDashboard'), icon: ChartIcon },
-        { path: '/admin/orders', label: t('nav.orderManagement'), icon: OrderIcon },
-        { path: '/admin/orders/plans', label: t('nav.paymentPlans'), icon: CreditCardIcon },
-      ],
-    },
-    { path: '/admin/usage', label: t('nav.usage'), icon: ChartIcon }
+        { path: '/admin/settings', label: t('nav.settings'), icon: CogIcon },
+        { path: '/admin/users', label: t('nav.users'), icon: UsersIcon },
+        { path: '/admin/announcements', label: t('nav.announcements'), icon: BellIcon },
+        { path: '/admin/usage', label: t('nav.usage'), icon: ChartIcon },
+        { path: '/admin/risk-control', label: t('nav.riskControl'), icon: ShieldIcon, featureFlag: flagRiskControl },
+        { path: '/admin/affiliates/invites', label: t('nav.affiliateInviteRecords'), icon: UsersIcon, featureFlag: flagAffiliate },
+        { path: '/admin/affiliates/rebates', label: t('nav.affiliateRebateRecords'), icon: OrderIcon, featureFlag: flagAffiliate },
+        { path: '/admin/affiliates/transfers', label: t('nav.affiliateTransferRecords'), icon: CreditCardIcon, featureFlag: flagAffiliate },
+        { path: '/admin/orders/dashboard', label: t('nav.paymentDashboard'), icon: ChartIcon, featureFlag: flagAdminPayment },
+        { path: '/admin/orders', label: t('nav.orderManagement'), icon: OrderIcon, featureFlag: flagAdminPayment },
+        { path: '/admin/orders/plans', label: t('nav.paymentPlans'), icon: CreditCardIcon, featureFlag: flagAdminPayment }
+      ]
+    }
   ]
 
   const visible = applyFeatureFlags(baseItems)
@@ -639,14 +640,12 @@ const adminNavItems = computed((): NavItem[] => {
   if (authStore.isSimpleMode) {
     const filtered = visible.filter(item => !item.hideInSimpleMode)
     filtered.push({ path: '/keys', label: t('nav.apiKeys'), icon: KeyIcon })
-    filtered.push({ path: '/admin/settings', label: t('nav.settings'), icon: CogIcon })
     for (const cm of customMenuItemsForAdmin.value) {
       filtered.push({ path: `/custom/${cm.id}`, label: cm.label, icon: null, iconSvg: cm.icon_svg })
     }
     return filtered
   }
 
-  visible.push({ path: '/admin/settings', label: t('nav.settings'), icon: CogIcon })
   for (const cm of customMenuItemsForAdmin.value) {
     visible.push({ path: `/custom/${cm.id}`, label: cm.label, icon: null, iconSvg: cm.icon_svg })
   }
@@ -695,11 +694,13 @@ function isGroupExpanded(item: NavItem): boolean {
 }
 
 function toggleGroup(item: NavItem) {
-  if (expandedGroups.value.has(item.path)) {
-    expandedGroups.value.delete(item.path)
+  const next = new Set(expandedGroups.value)
+  if (next.has(item.path)) {
+    next.delete(item.path)
   } else {
-    expandedGroups.value.add(item.path)
+    next.add(item.path)
   }
+  expandedGroups.value = next
 }
 
 /**
@@ -720,7 +721,7 @@ function handleGroupClick(item: NavItem) {
     router.push(item.path)
   }
   if (!expandedGroups.value.has(item.path)) {
-    expandedGroups.value.add(item.path)
+    expandedGroups.value = new Set([...expandedGroups.value, item.path])
   }
 }
 
@@ -744,14 +745,54 @@ onMounted(() => {
 
 <style scoped>
 .sidebar-logo {
-  flex: 0 0 3rem;
-  min-width: 3rem;
+  flex: 0 0 2.25rem;
+  min-width: 2.25rem;
+}
+
+.sidebar-admin .sidebar-header {
+  height: 3.5rem;
+  gap: 0.55rem;
+  padding-left: 0.75rem;
+  padding-right: 0.75rem;
+}
+
+.sidebar-admin .sidebar-nav {
+  padding: 0.5rem;
+}
+
+.sidebar-admin .sidebar-section {
+  margin-bottom: 0.5rem;
+}
+
+.sidebar-admin .sidebar-link {
+  min-height: 2rem;
+  gap: 0.55rem;
+  margin-bottom: 0.125rem !important;
+  padding: 0.34rem 0.62rem;
+  border-radius: 6px;
+  line-height: 1.1;
+}
+
+.sidebar-admin .sidebar-section-title {
+  min-height: 1rem;
+  margin-bottom: 0.25rem;
+  padding-left: 0.62rem;
+  padding-right: 0.62rem;
+  font-size: 0.65rem;
+}
+
+.sidebar-admin .sidebar-footer {
+  padding: 0.4rem 0.5rem;
+}
+
+.sidebar-admin .sidebar-footer .sidebar-link {
+  margin-bottom: 0 !important;
 }
 
 .sidebar-header-collapsed {
   gap: 0;
-  padding-left: 0.875rem;
-  padding-right: 0.875rem;
+  padding-left: 0.875rem !important;
+  padding-right: 0.875rem !important;
 }
 
 .sidebar-brand {
@@ -782,8 +823,8 @@ onMounted(() => {
 
 .sidebar-link-collapsed {
   gap: 0;
-  padding-left: 0.875rem;
-  padding-right: 0.875rem;
+  padding-left: 0.75rem !important;
+  padding-right: 0.75rem !important;
 }
 
 .sidebar-section-title {

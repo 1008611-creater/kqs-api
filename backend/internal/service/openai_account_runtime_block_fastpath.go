@@ -13,6 +13,7 @@ const (
 	openAIOAuth429StormWindow             = 10 * time.Second
 	openAIOAuth429StormThreshold          = 20
 	openAIOAuth429StormMaxAccountSwitches = 1
+	openAIUpstreamFailureCooldown         = time.Minute
 )
 
 func openAIAccountStateContext(ctx context.Context) (context.Context, context.CancelFunc) {
@@ -38,13 +39,26 @@ func (s *OpenAIGatewayService) handleOpenAIAccountUpstreamError(ctx context.Cont
 	if statusCode == http.StatusTooManyRequests {
 		s.markOpenAIOAuth429RateLimited(stateCtx, account, headers, responseBody)
 	}
-	if s == nil || account == nil || s.rateLimitService == nil {
+	if s == nil || account == nil {
 		return false
 	}
-	shouldDisable := s.rateLimitService.HandleUpstreamError(stateCtx, account, statusCode, headers, responseBody)
+	shouldDisable := false
+	if s.rateLimitService != nil {
+		shouldDisable = s.rateLimitService.HandleUpstreamError(stateCtx, account, statusCode, headers, responseBody)
+	}
 	if shouldDisable {
 		s.BlockAccountScheduling(account, time.Time{}, "upstream_disable")
-	} else if isOpenAIUpstreamConcurrencyLimited("", responseBody) {
+	} else if statusCode >= http.StatusInternalServerError {
+		// A 5xx means this channel did not complete a request that another
+		// channel in the group may be able to serve. Keep it out of fresh
+		// selections long enough for the current failover and near-term traffic.
+		s.BlockAccountScheduling(account, time.Now().Add(openAIUpstreamFailureCooldown), "upstream_5xx")
+	} else if isOpenAIUpstreamConcurrencyLimited("", responseBody) ||
+		isOpenAITransientProcessingError(statusCode, "", responseBody) {
+		// Some upstreams report capacity and transient processing failures as
+		// HTTP 400. They are safe to fail over, but they must also briefly leave
+		// fresh scheduling so consecutive users do not repeatedly hit the same
+		// already-saturated channel.
 		s.BlockAccountScheduling(account, time.Now().Add(30*time.Second), "upstream_concurrency")
 		return true
 	}

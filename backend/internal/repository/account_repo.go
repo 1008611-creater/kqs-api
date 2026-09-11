@@ -15,6 +15,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"strconv"
 	"strings"
 	"time"
@@ -829,6 +830,30 @@ func (r *accountRepository) AddToGroup(ctx context.Context, accountID, groupID i
 	payload := buildSchedulerGroupPayload([]int64{groupID})
 	if err := enqueueSchedulerOutbox(ctx, r.sql, service.SchedulerOutboxEventAccountGroupsChanged, &accountID, nil, payload); err != nil {
 		logger.LegacyPrintf("repository.account", "[SchedulerOutbox] enqueue add to group failed: account=%d group=%d err=%v", accountID, groupID, err)
+	}
+	return nil
+}
+
+func (r *accountRepository) UpdateGroupPriority(ctx context.Context, accountID, groupID int64, priority int) error {
+	if priority <= 0 {
+		return errors.New("priority must be positive")
+	}
+	updated, err := r.client.AccountGroup.Update().
+		Where(
+			dbaccountgroup.AccountIDEQ(accountID),
+			dbaccountgroup.GroupIDEQ(groupID),
+		).
+		SetPriority(priority).
+		Save(ctx)
+	if err != nil {
+		return err
+	}
+	if updated == 0 {
+		return fmt.Errorf("account %d is not bound to group %d", accountID, groupID)
+	}
+	payload := buildSchedulerGroupPayload([]int64{groupID})
+	if err := enqueueSchedulerOutbox(ctx, r.sql, service.SchedulerOutboxEventAccountGroupsChanged, &accountID, nil, payload); err != nil {
+		logger.LegacyPrintf("repository.account", "[SchedulerOutbox] enqueue group priority update failed: account=%d group=%d err=%v", accountID, groupID, err)
 	}
 	return nil
 }

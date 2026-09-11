@@ -63,6 +63,7 @@
           />
           <TokenUsageTrend :trend-data="trendData" :loading="chartsLoading" />
         </div>
+        <UserUsageTrendChart :user-trend-data="userTrendData" :loading="chartsLoading" />
       </div>
       <UsageFilters v-model="filters" :start-date="startDate" :end-date="endDate" :exporting="exporting" @change="applyFilters" @refresh="refreshData" @reset="resetFilters" @cleanup="openCleanupDialog" @export="exportToExcel">
         <template #after-reset>
@@ -144,10 +145,10 @@ import UsageStatsCards from '@/components/admin/usage/UsageStatsCards.vue'; impo
 import UsageTable from '@/components/admin/usage/UsageTable.vue'; import UsageExportProgress from '@/components/admin/usage/UsageExportProgress.vue'
 import UsageCleanupDialog from '@/components/admin/usage/UsageCleanupDialog.vue'
 import UserBalanceHistoryModal from '@/components/admin/user/UserBalanceHistoryModal.vue'
-import ModelDistributionChart from '@/components/charts/ModelDistributionChart.vue'; import GroupDistributionChart from '@/components/charts/GroupDistributionChart.vue'; import TokenUsageTrend from '@/components/charts/TokenUsageTrend.vue'
+import ModelDistributionChart from '@/components/charts/ModelDistributionChart.vue'; import GroupDistributionChart from '@/components/charts/GroupDistributionChart.vue'; import TokenUsageTrend from '@/components/charts/TokenUsageTrend.vue'; import UserUsageTrendChart from '@/components/charts/UserUsageTrendChart.vue'
 import EndpointDistributionChart from '@/components/charts/EndpointDistributionChart.vue'
 import Icon from '@/components/icons/Icon.vue'
-import type { AdminUsageLog, TrendDataPoint, ModelStat, GroupStat, EndpointStat, AdminUser } from '@/types'; import type { AdminUsageStatsResponse, AdminUsageQueryParams } from '@/api/admin/usage'
+import type { AdminUsageLog, TrendDataPoint, UserUsageTrendPoint, ModelStat, GroupStat, EndpointStat, AdminUser } from '@/types'; import type { AdminUsageStatsResponse, AdminUsageQueryParams } from '@/api/admin/usage'
 
 const { t } = useI18n()
 const appStore = useAppStore()
@@ -156,7 +157,7 @@ type EndpointSource = 'inbound' | 'upstream' | 'path'
 type ModelDistributionSource = 'requested' | 'upstream' | 'mapping'
 const route = useRoute()
 const usageStats = ref<AdminUsageStatsResponse | null>(null); const usageLogs = ref<AdminUsageLog[]>([]); const loading = ref(false); const exporting = ref(false)
-const trendData = ref<TrendDataPoint[]>([]); const requestedModelStats = ref<ModelStat[]>([]); const upstreamModelStats = ref<ModelStat[]>([]); const mappingModelStats = ref<ModelStat[]>([]); const groupStats = ref<GroupStat[]>([]); const chartsLoading = ref(false); const modelStatsLoading = ref(false); const granularity = ref<'day' | 'hour'>('hour')
+const trendData = ref<TrendDataPoint[]>([]); const userTrendData = ref<UserUsageTrendPoint[]>([]); const requestedModelStats = ref<ModelStat[]>([]); const upstreamModelStats = ref<ModelStat[]>([]); const mappingModelStats = ref<ModelStat[]>([]); const groupStats = ref<GroupStat[]>([]); const chartsLoading = ref(false); const modelStatsLoading = ref(false); const granularity = ref<'day' | 'hour'>('hour')
 const modelDistributionMetric = ref<DistributionMetric>('tokens')
 const modelDistributionSource = ref<ModelDistributionSource>('requested')
 const loadedModelSources = reactive<Record<ModelDistributionSource, boolean>>({
@@ -412,10 +413,12 @@ const loadChartData = async () => {
       include_trend: true,
       include_model_stats: false,
       include_group_stats: true,
-      include_users_trend: false
+      include_users_trend: true,
+      users_trend_limit: 12
     })
     if (seq !== chartReqSeq) return
     trendData.value = snapshot.trend || []
+    userTrendData.value = snapshot.users_trend || []
     groupStats.value = snapshot.groups || []
   } catch (error) { console.error('Failed to load chart data:', error) } finally { if (seq === chartReqSeq) chartsLoading.value = false }
 }

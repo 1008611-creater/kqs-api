@@ -825,6 +825,7 @@ export interface Account {
   proxy?: Proxy
   group_ids?: number[] // Groups this account belongs to
   groups?: Group[] // Preloaded group objects
+  account_groups?: AccountGroup[]
 
   // Rate limit & scheduling fields
   schedulable: boolean
@@ -891,6 +892,14 @@ export interface Account {
   current_window_cost?: number | null // 当前窗口费用
   active_sessions?: number | null // 当前活跃会话数
   current_rpm?: number | null // 当前分钟 RPM 计数
+}
+
+export interface AccountGroup {
+  account_id: number
+  group_id: number
+  priority: number
+  created_at?: string
+  group?: Group
 }
 
 // Account Usage types

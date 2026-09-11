@@ -207,7 +207,9 @@ SELECT
   COALESCE(e.error_owner, ''),
   COALESCE(e.error_source, ''),
   e.severity,
-  COALESCE(e.upstream_status_code, e.status_code, 0),
+  COALESCE(e.status_code, 0),
+  e.upstream_status_code,
+  CASE WHEN COALESCE(e.status_code, 0) < 400 AND e.upstream_status_code IS NOT NULL THEN true ELSE false END,
   COALESCE(e.platform, ''),
   COALESCE(e.model, ''),
   COALESCE(e.resolved, false),
@@ -251,6 +253,7 @@ LIMIT $` + itoa(len(args)+1) + ` OFFSET $` + itoa(len(args)+2)
 	for rows.Next() {
 		var item service.OpsErrorLog
 		var statusCode sql.NullInt64
+		var upstreamStatusCode sql.NullInt64
 		var clientIP sql.NullString
 		var userID sql.NullInt64
 		var apiKeyID sql.NullInt64
@@ -272,6 +275,8 @@ LIMIT $` + itoa(len(args)+1) + ` OFFSET $` + itoa(len(args)+2)
 			&item.Source,
 			&item.Severity,
 			&statusCode,
+			&upstreamStatusCode,
+			&item.Recovered,
 			&item.Platform,
 			&item.Model,
 			&item.Resolved,
@@ -309,6 +314,10 @@ LIMIT $` + itoa(len(args)+1) + ` OFFSET $` + itoa(len(args)+2)
 		}
 		item.ResolvedByUserName = resolvedByName
 		item.StatusCode = int(statusCode.Int64)
+		if upstreamStatusCode.Valid && upstreamStatusCode.Int64 > 0 {
+			v := int(upstreamStatusCode.Int64)
+			item.UpstreamStatusCode = &v
+		}
 		if clientIP.Valid {
 			s := clientIP.String
 			item.ClientIP = &s
@@ -367,7 +376,7 @@ SELECT
   COALESCE(e.error_owner, ''),
   COALESCE(e.error_source, ''),
   e.severity,
-  COALESCE(e.upstream_status_code, e.status_code, 0),
+  COALESCE(e.status_code, 0),
   COALESCE(e.platform, ''),
   COALESCE(e.model, ''),
   COALESCE(e.resolved, false),
@@ -896,12 +905,12 @@ func buildOpsErrorLogsWhere(filter *service.OpsErrorLogFilter) (string, []any) {
 	}
 	if len(filter.StatusCodes) > 0 {
 		args = append(args, pq.Array(filter.StatusCodes))
-		clauses = append(clauses, "COALESCE(e.upstream_status_code, e.status_code, 0) = ANY($"+itoa(len(args))+")")
+		clauses = append(clauses, "COALESCE(e.status_code, 0) = ANY($"+itoa(len(args))+")")
 	} else if filter.StatusCodesOther {
 		// "Other" means: status codes not in the common list.
 		known := []int{400, 401, 403, 404, 409, 422, 429, 500, 502, 503, 504, 529}
 		args = append(args, pq.Array(known))
-		clauses = append(clauses, "NOT (COALESCE(e.upstream_status_code, e.status_code, 0) = ANY($"+itoa(len(args))+"))")
+		clauses = append(clauses, "NOT (COALESCE(e.status_code, 0) = ANY($"+itoa(len(args))+"))")
 	}
 	// Exact correlation keys (preferred for request↔upstream linkage).
 	if rid := strings.TrimSpace(filter.RequestID); rid != "" {

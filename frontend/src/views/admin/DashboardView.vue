@@ -1,956 +1,176 @@
 <template>
   <AppLayout>
-    <div class="space-y-6">
-      <!-- Loading State -->
-      <div v-if="loading" class="flex items-center justify-center py-12">
+    <div class="ops-overview">
+      <header class="ops-overview__head">
+        <div>
+          <p class="ops-overview__eyebrow">运营控制台</p>
+          <h1 class="ops-overview__title">经营概览</h1>
+        </div>
+        <button class="ops-overview__refresh" :disabled="loading" @click="refreshDashboard">刷新数据</button>
+      </header>
+
+      <div v-if="loading && !stats" class="ops-overview__loading">
         <LoadingSpinner />
       </div>
 
       <template v-else-if="stats">
-        <!-- Row 1: Core Stats -->
-        <div class="grid grid-cols-2 gap-4 lg:grid-cols-4">
-          <!-- Total API Keys -->
-          <div class="card p-4">
-            <div class="flex items-center gap-3">
-              <div class="rounded-lg bg-blue-100 p-2 dark:bg-blue-900/30">
-                <Icon name="key" size="md" class="text-blue-600 dark:text-blue-400" :stroke-width="2" />
-              </div>
-              <div>
-                <p class="text-xs font-medium text-gray-500 dark:text-gray-400">
-                  {{ t('admin.dashboard.apiKeys') }}
-                </p>
-                <p class="text-xl font-bold text-gray-900 dark:text-white">
-                  {{ stats.total_api_keys }}
-                </p>
-                <p class="text-xs text-green-600 dark:text-green-400">
-                  {{ stats.active_api_keys }} {{ t('common.active') }}
-                </p>
-              </div>
+        <section class="ops-kpis" aria-label="核心运营指标">
+          <button class="ops-kpi ops-kpi--supply" @click="goTo('/admin/accounts')">
+            <p class="ops-kpi__label">渠道供给</p>
+            <p class="ops-kpi__value">{{ stats.normal_accounts }} <span>/ {{ stats.total_accounts }}</span></p>
+            <p class="ops-kpi__meta" :class="stats.error_accounts > 0 ? 'ops-kpi__meta--attention' : 'ops-kpi__meta--healthy'">
+              {{ stats.error_accounts > 0 ? `${stats.error_accounts} 个渠道需要处理` : '当前无异常渠道' }}
+            </p>
+          </button>
+
+          <button class="ops-kpi" @click="goTo('/admin/ops')">
+            <p class="ops-kpi__label">实时服务</p>
+            <p class="ops-kpi__value">{{ formatNumber(stats.today_requests) }}</p>
+            <p class="ops-kpi__meta">今日请求 · {{ stats.active_users }} 位活跃用户</p>
+          </button>
+
+          <button class="ops-kpi" @click="goTo('/admin/subscriptions')">
+            <p class="ops-kpi__label">用户与权益</p>
+            <p class="ops-kpi__value">{{ formatNumber(stats.total_users) }}</p>
+            <p class="ops-kpi__meta">总用户 · 订阅、补发与重置</p>
+          </button>
+
+          <button class="ops-kpi" @click="goTo('/admin/usage')">
+            <p class="ops-kpi__label">今日实际扣除</p>
+            <p class="ops-kpi__value">${{ formatCost(stats.today_actual_cost) }}</p>
+            <p class="ops-kpi__meta">{{ formatTokens(stats.today_tokens) }} Token · 仅今日口径</p>
+          </button>
+        </section>
+
+        <section class="ops-traffic">
+          <div class="ops-traffic__head">
+            <div>
+              <p class="ops-traffic__eyebrow">近 24 小时</p>
+              <h2 class="ops-traffic__title">上游代理流量</h2>
             </div>
+            <button class="ops-traffic__action" @click="goTo('/admin/ops')">进入运维处置</button>
           </div>
 
-          <!-- Service Accounts -->
-          <div class="card p-4">
-            <div class="flex items-center gap-3">
-              <div class="rounded-lg bg-purple-100 p-2 dark:bg-purple-900/30">
-                <Icon name="server" size="md" class="text-purple-600 dark:text-purple-400" :stroke-width="2" />
-              </div>
-              <div>
-                <p class="text-xs font-medium text-gray-500 dark:text-gray-400">
-                  {{ t('admin.dashboard.accounts') }}
-                </p>
-                <p class="text-xl font-bold text-gray-900 dark:text-white">
-                  {{ stats.total_accounts }}
-                </p>
-                <p class="text-xs">
-                  <span class="text-green-600 dark:text-green-400"
-                    >{{ stats.normal_accounts }} {{ t('common.active') }}</span
-                  >
-                  <span v-if="stats.error_accounts > 0" class="ml-1 text-red-500"
-                    >{{ stats.error_accounts }} {{ t('common.error') }}</span
-                  >
-                </p>
-              </div>
+          <div v-if="upstreamTrafficLoading" class="ops-traffic__loading"><LoadingSpinner /></div>
+          <template v-else-if="upstreamTraffic">
+            <div class="ops-traffic__stats">
+              <div class="ops-traffic__stat"><p>总流量</p><strong>{{ formatBytes(upstreamTraffic.total_bytes) }}</strong></div>
+              <div class="ops-traffic__stat"><p>上行请求</p><strong>{{ formatBytes(upstreamTraffic.request_bytes) }}</strong></div>
+              <div class="ops-traffic__stat"><p>下行响应</p><strong>{{ formatBytes(upstreamTraffic.response_bytes) }}</strong></div>
+              <div class="ops-traffic__stat"><p>转发请求</p><strong>{{ formatNumber(upstreamTraffic.request_count) }}</strong></div>
             </div>
-          </div>
-
-          <!-- Today Requests -->
-          <div class="card p-4">
-            <div class="flex items-center gap-3">
-              <div class="rounded-lg bg-green-100 p-2 dark:bg-green-900/30">
-                <Icon name="chart" size="md" class="text-green-600 dark:text-green-400" :stroke-width="2" />
-              </div>
-              <div>
-                <p class="text-xs font-medium text-gray-500 dark:text-gray-400">
-                  {{ t('admin.dashboard.todayRequests') }}
-                </p>
-                <p class="text-xl font-bold text-gray-900 dark:text-white">
-                  {{ stats.today_requests }}
-                </p>
-                <p class="text-xs text-gray-500 dark:text-gray-400">
-                  {{ t('common.total') }}: {{ formatNumber(stats.total_requests) }}
-                </p>
-              </div>
+            <div class="ops-traffic__table-wrap">
+              <table class="ops-traffic__table">
+                <thead><tr><th>主要消耗渠道</th><th>流量</th><th>请求</th><th>平均耗时</th></tr></thead>
+                <tbody>
+                  <tr v-for="item in upstreamTraffic.top_accounts.slice(0, 5)" :key="item.account_id" @click="goTo('/admin/accounts')">
+                    <td>{{ item.account_name }}</td>
+                    <td>{{ formatBytes(item.total_bytes) }}</td>
+                    <td>{{ formatNumber(item.request_count) }}</td>
+                    <td>{{ formatDuration(item.avg_duration_ms) }}</td>
+                  </tr>
+                  <tr v-if="!upstreamTraffic.top_accounts.length"><td colspan="4" class="ops-traffic__empty">近 24 小时暂无上游流量</td></tr>
+                </tbody>
+              </table>
             </div>
-          </div>
+          </template>
+          <div v-else class="ops-traffic__empty">暂时无法读取上游流量，服务本身不受影响。</div>
+        </section>
 
-          <!-- New Users Today -->
-          <div class="card p-4">
-            <div class="flex items-center gap-3">
-              <div class="rounded-lg bg-emerald-100 p-2 dark:bg-emerald-900/30">
-                <Icon name="userPlus" size="md" class="text-emerald-600 dark:text-emerald-400" :stroke-width="2" />
-              </div>
-              <div>
-                <p class="text-xs font-medium text-gray-500 dark:text-gray-400">
-                  {{ t('admin.dashboard.users') }}
-                </p>
-                <p class="text-xl font-bold text-emerald-600 dark:text-emerald-400">
-                  +{{ stats.today_new_users }}
-                </p>
-                <p class="text-xs text-gray-500 dark:text-gray-400">
-                  {{ t('common.total') }}: {{ formatNumber(stats.total_users) }}
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Row 2: Token Stats -->
-        <div class="grid grid-cols-2 gap-4 lg:grid-cols-4">
-          <!-- Today Tokens -->
-          <div class="card p-4">
-            <div class="flex items-center gap-3">
-              <div class="rounded-lg bg-amber-100 p-2 dark:bg-amber-900/30">
-                <Icon name="cube" size="md" class="text-amber-600 dark:text-amber-400" :stroke-width="2" />
-              </div>
-              <div>
-                <p class="text-xs font-medium text-gray-500 dark:text-gray-400">
-                  {{ t('admin.dashboard.todayTokens') }}
-                </p>
-                <p class="text-xl font-bold text-gray-900 dark:text-white">
-                  {{ formatTokens(stats.today_tokens) }}
-                </p>
-                <p class="text-xs">
-                  <span
-                    class="text-green-600 dark:text-green-400"
-                    :title="t('admin.dashboard.actual')"
-                    >${{ formatCost(stats.today_actual_cost) }}</span
-                  >
-                  <span class="text-gray-400 dark:text-gray-500"> / </span>
-                  <span
-                    class="text-orange-500 dark:text-orange-400"
-                    :title="t('admin.dashboard.accountCost')"
-                    >${{ formatCost(stats.today_account_cost) }}</span
-                  >
-                  <span class="text-gray-400 dark:text-gray-500"> / </span>
-                  <span
-                    class="text-gray-400 dark:text-gray-500"
-                    :title="t('admin.dashboard.standard')"
-                    >${{ formatCost(stats.today_cost) }}</span
-                  >
-                </p>
-              </div>
-            </div>
-          </div>
-
-          <!-- Total Tokens -->
-          <div class="card p-4">
-            <div class="flex items-center gap-3">
-              <div class="rounded-lg bg-indigo-100 p-2 dark:bg-indigo-900/30">
-                <Icon name="database" size="md" class="text-indigo-600 dark:text-indigo-400" :stroke-width="2" />
-              </div>
-              <div>
-                <p class="text-xs font-medium text-gray-500 dark:text-gray-400">
-                  {{ t('admin.dashboard.totalTokens') }}
-                </p>
-                <p class="text-xl font-bold text-gray-900 dark:text-white">
-                  {{ formatTokens(stats.total_tokens) }}
-                </p>
-                <p class="text-xs">
-                  <span
-                    class="text-green-600 dark:text-green-400"
-                    :title="t('admin.dashboard.actual')"
-                    >${{ formatCost(stats.total_actual_cost) }}</span
-                  >
-                  <span class="text-gray-400 dark:text-gray-500"> / </span>
-                  <span
-                    class="text-orange-500 dark:text-orange-400"
-                    :title="t('admin.dashboard.accountCost')"
-                    >${{ formatCost(stats.total_account_cost) }}</span
-                  >
-                  <span class="text-gray-400 dark:text-gray-500"> / </span>
-                  <span
-                    class="text-gray-400 dark:text-gray-500"
-                    :title="t('admin.dashboard.standard')"
-                    >${{ formatCost(stats.total_cost) }}</span
-                  >
-                </p>
-              </div>
-            </div>
-          </div>
-
-          <!-- Performance (RPM/TPM) -->
-          <div class="card p-4">
-            <div class="flex items-center gap-3">
-              <div class="rounded-lg bg-violet-100 p-2 dark:bg-violet-900/30">
-                <Icon name="bolt" size="md" class="text-violet-600 dark:text-violet-400" :stroke-width="2" />
-              </div>
-              <div class="flex-1">
-                <p class="text-xs font-medium text-gray-500 dark:text-gray-400">
-                  {{ t('admin.dashboard.performance') }}
-                </p>
-                <div class="flex items-baseline gap-2">
-                  <p class="text-xl font-bold text-gray-900 dark:text-white">
-                    {{ formatTokens(stats.rpm) }}
-                  </p>
-                  <span class="text-xs text-gray-500 dark:text-gray-400">RPM</span>
-                </div>
-                <div class="flex items-baseline gap-2">
-                  <p class="text-sm font-semibold text-violet-600 dark:text-violet-400">
-                    {{ formatTokens(stats.tpm) }}
-                  </p>
-                  <span class="text-xs text-gray-500 dark:text-gray-400">TPM</span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Avg Response Time -->
-          <div class="card p-4">
-            <div class="flex items-center gap-3">
-              <div class="rounded-lg bg-rose-100 p-2 dark:bg-rose-900/30">
-                <Icon name="clock" size="md" class="text-rose-600 dark:text-rose-400" :stroke-width="2" />
-              </div>
-              <div>
-                <p class="text-xs font-medium text-gray-500 dark:text-gray-400">
-                  {{ t('admin.dashboard.avgResponse') }}
-                </p>
-                <p class="text-xl font-bold text-gray-900 dark:text-white">
-                  {{ formatDuration(stats.average_duration_ms) }}
-                </p>
-                <p class="text-xs text-gray-500 dark:text-gray-400">
-                  {{ stats.active_users }} {{ t('admin.dashboard.activeUsers') }}
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Charts Section -->
-        <div class="space-y-6">
-          <!-- Date Range Filter -->
-          <div class="card p-4">
-            <div class="flex flex-wrap items-center gap-4">
-              <div class="flex items-center gap-2">
-                <span class="text-sm font-medium text-gray-700 dark:text-gray-300"
-                  >{{ t('admin.dashboard.timeRange') }}:</span
-                >
-                <DateRangePicker
-                  v-model:start-date="startDate"
-                  v-model:end-date="endDate"
-                  @change="onDateRangeChange"
-                />
-              </div>
-              <button @click="refreshDashboard" :disabled="chartsLoading" class="btn btn-secondary">
-                {{ t('common.refresh') }}
-              </button>
-              <div class="ml-auto flex items-center gap-2">
-                <span class="text-sm font-medium text-gray-700 dark:text-gray-300"
-                  >{{ t('admin.dashboard.granularity') }}:</span
-                >
-                <div class="w-28">
-                  <Select
-                    v-model="granularity"
-                    :options="granularityOptions"
-                    @change="loadChartData"
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Charts Grid -->
-          <div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
-            <ModelDistributionChart
-              :model-stats="modelStats"
-              :enable-ranking-view="true"
-              :ranking-items="rankingItems"
-              :ranking-total-actual-cost="rankingTotalActualCost"
-              :ranking-total-requests="rankingTotalRequests"
-              :ranking-total-tokens="rankingTotalTokens"
-              :loading="chartsLoading"
-              :ranking-loading="rankingLoading"
-              :ranking-error="rankingError"
-              :start-date="startDate"
-              :end-date="endDate"
-              @ranking-click="goToUserUsage"
-            />
-            <TokenUsageTrend :trend-data="trendData" :loading="chartsLoading" />
-          </div>
-
-          <!-- Admin-only Upstream Traffic -->
-          <div class="card p-4">
-            <div class="mb-4 flex items-center justify-between gap-3">
-              <div>
-                <h3 class="text-sm font-semibold text-gray-900 dark:text-white">
-                  上游代理流量
-                </h3>
-                <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                  仅管理员可见，统计本站转发到上游中转站的请求与响应字节
-                </p>
-              </div>
-              <div class="rounded-lg bg-sky-100 p-2 dark:bg-sky-900/30">
-                <Icon name="chart" size="md" class="text-sky-600 dark:text-sky-400" :stroke-width="2" />
-              </div>
-            </div>
-
-            <div v-if="upstreamTrafficLoading" class="flex h-40 items-center justify-center">
-              <LoadingSpinner size="md" />
-            </div>
-            <div v-else-if="upstreamTraffic" class="space-y-4">
-              <div class="grid grid-cols-2 gap-3 lg:grid-cols-4">
-                <div class="rounded-lg border border-gray-200 p-3 dark:border-dark-700">
-                  <p class="text-xs text-gray-500 dark:text-gray-400">总流量</p>
-                  <p class="mt-1 text-lg font-bold text-gray-900 dark:text-white">{{ formatBytes(upstreamTraffic.total_bytes) }}</p>
-                </div>
-                <div class="rounded-lg border border-gray-200 p-3 dark:border-dark-700">
-                  <p class="text-xs text-gray-500 dark:text-gray-400">上行请求</p>
-                  <p class="mt-1 text-lg font-bold text-gray-900 dark:text-white">{{ formatBytes(upstreamTraffic.request_bytes) }}</p>
-                </div>
-                <div class="rounded-lg border border-gray-200 p-3 dark:border-dark-700">
-                  <p class="text-xs text-gray-500 dark:text-gray-400">下行响应</p>
-                  <p class="mt-1 text-lg font-bold text-gray-900 dark:text-white">{{ formatBytes(upstreamTraffic.response_bytes) }}</p>
-                </div>
-                <div class="rounded-lg border border-gray-200 p-3 dark:border-dark-700">
-                  <p class="text-xs text-gray-500 dark:text-gray-400">请求数</p>
-                  <p class="mt-1 text-lg font-bold text-gray-900 dark:text-white">{{ formatNumber(upstreamTraffic.request_count) }}</p>
-                </div>
-              </div>
-
-              <div class="h-64 rounded-lg border border-gray-200 p-3 dark:border-dark-700">
-                <Line
-                  v-if="upstreamTrafficChartData"
-                  :data="upstreamTrafficChartData"
-                  :options="upstreamTrafficChartOptions"
-                />
-                <div
-                  v-else
-                  class="flex h-full items-center justify-center text-sm text-gray-500 dark:text-gray-400"
-                >
-                  暂无趋势数据
-                </div>
-              </div>
-
-              <div class="overflow-hidden rounded-lg border border-gray-200 dark:border-dark-700">
-                <table class="min-w-full divide-y divide-gray-200 text-sm dark:divide-dark-700">
-                  <thead class="bg-gray-50 dark:bg-dark-800">
-                    <tr>
-                      <th class="px-3 py-2 text-left font-medium text-gray-500 dark:text-gray-400">上游账号</th>
-                      <th class="px-3 py-2 text-right font-medium text-gray-500 dark:text-gray-400">流量</th>
-                      <th class="px-3 py-2 text-right font-medium text-gray-500 dark:text-gray-400">请求</th>
-                      <th class="px-3 py-2 text-right font-medium text-gray-500 dark:text-gray-400">平均耗时</th>
-                    </tr>
-                  </thead>
-                  <tbody class="divide-y divide-gray-200 dark:divide-dark-700">
-                    <tr v-for="item in upstreamTraffic.top_accounts" :key="item.account_id">
-                      <td class="px-3 py-2">
-                        <div class="font-medium text-gray-900 dark:text-white">{{ item.account_name }}</div>
-                        <div class="text-xs text-gray-500 dark:text-gray-400">{{ item.platform || 'unknown' }} · #{{ item.account_id }}</div>
-                      </td>
-                      <td class="px-3 py-2 text-right text-gray-900 dark:text-white">{{ formatBytes(item.total_bytes) }}</td>
-                      <td class="px-3 py-2 text-right text-gray-600 dark:text-gray-300">{{ formatNumber(item.request_count) }}</td>
-                      <td class="px-3 py-2 text-right text-gray-600 dark:text-gray-300">{{ formatNullableDuration(item.avg_duration_ms) }}</td>
-                    </tr>
-                    <tr v-if="!upstreamTraffic.top_accounts.length">
-                      <td colspan="4" class="px-3 py-8 text-center text-gray-500 dark:text-gray-400">暂无新流量数据</td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-            </div>
-            <div v-else class="flex h-40 items-center justify-center text-sm text-gray-500 dark:text-gray-400">
-              暂无新流量数据
-            </div>
-          </div>
-
-          <!-- User Usage Trend (Full Width) -->
-          <div class="card p-4">
-            <h3 class="mb-4 text-sm font-semibold text-gray-900 dark:text-white">
-              {{ t('admin.dashboard.recentUsage') }} (Top 12)
-            </h3>
-            <div class="h-64">
-              <div v-if="userTrendLoading" class="flex h-full items-center justify-center">
-                <LoadingSpinner size="md" />
-              </div>
-              <Line v-else-if="userTrendChartData" :data="userTrendChartData" :options="lineOptions" />
-              <div
-                v-else
-                class="flex h-full items-center justify-center text-sm text-gray-500 dark:text-gray-400"
-              >
-                {{ t('admin.dashboard.noDataAvailable') }}
-              </div>
-            </div>
-          </div>
-        </div>
+        <section class="ops-actions" aria-label="快捷操作">
+          <button class="ops-action" @click="goTo('/admin/accounts')"><span><strong>渠道供给</strong><small>测速、摘除故障渠道、调整优先级和权重。</small></span><b aria-hidden="true">→</b></button>
+          <button class="ops-action" @click="goTo('/admin/groups')"><span><strong>分组与模型</strong><small>配置用户可用模型、倍率和分组供给。</small></span><b aria-hidden="true">→</b></button>
+          <button class="ops-action" @click="goTo('/admin/subscriptions')"><span><strong>订阅与兑换</strong><small>处理订阅发放、额度重置、补偿和兑换。</small></span><b aria-hidden="true">→</b></button>
+        </section>
       </template>
     </div>
   </AppLayout>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
-import { useI18n } from 'vue-i18n'
+import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { useAppStore } from '@/stores/app'
-
-const { t } = useI18n()
 import { adminAPI } from '@/api/admin'
-import { opsAPI } from '@/api/admin/ops'
-import type { OpsUpstreamTrafficStatsResponse } from '@/api/admin/ops'
-import type {
-  DashboardStats,
-  TrendDataPoint,
-  ModelStat,
-  UserUsageTrendPoint,
-  UserSpendingRankingItem
-} from '@/types'
+import { opsAPI, type OpsUpstreamTrafficStatsResponse } from '@/api/admin/ops'
+import type { DashboardStats } from '@/types'
 import AppLayout from '@/components/layout/AppLayout.vue'
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
-import Icon from '@/components/icons/Icon.vue'
-import DateRangePicker from '@/components/common/DateRangePicker.vue'
-import Select from '@/components/common/Select.vue'
-import ModelDistributionChart from '@/components/charts/ModelDistributionChart.vue'
-import TokenUsageTrend from '@/components/charts/TokenUsageTrend.vue'
 
-import {
-  Chart as ChartJS,
-  CategoryScale,
-  LinearScale,
-  PointElement,
-  LineElement,
-  Tooltip,
-  Legend,
-  Filler
-} from 'chart.js'
-import { Line } from 'vue-chartjs'
-
-// Register Chart.js components
-ChartJS.register(
-  CategoryScale,
-  LinearScale,
-  PointElement,
-  LineElement,
-  Tooltip,
-  Legend,
-  Filler
-)
-
-const appStore = useAppStore()
 const router = useRouter()
 const stats = ref<DashboardStats | null>(null)
-const loading = ref(false)
-const chartsLoading = ref(false)
-const userTrendLoading = ref(false)
-const rankingLoading = ref(false)
-const rankingError = ref(false)
-const upstreamTrafficLoading = ref(false)
 const upstreamTraffic = ref<OpsUpstreamTrafficStatsResponse | null>(null)
+const loading = ref(false)
+const upstreamTrafficLoading = ref(false)
 
-// Chart data
-const trendData = ref<TrendDataPoint[]>([])
-const modelStats = ref<ModelStat[]>([])
-const userTrend = ref<UserUsageTrendPoint[]>([])
-const rankingItems = ref<UserSpendingRankingItem[]>([])
-const rankingTotalActualCost = ref(0)
-const rankingTotalRequests = ref(0)
-const rankingTotalTokens = ref(0)
-let chartLoadSeq = 0
-let usersTrendLoadSeq = 0
-let rankingLoadSeq = 0
-let upstreamTrafficLoadSeq = 0
-const rankingLimit = 12
-
-// Helper function to format date in local timezone
-const formatLocalDate = (date: Date): string => {
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
+const formatNumber = (value: number | undefined) => Number(value || 0).toLocaleString()
+const formatTokens = (value: number | undefined) => {
+  const numeric = Number(value || 0)
+  if (numeric >= 1_000_000_000) return `${(numeric / 1_000_000_000).toFixed(2)}B`
+  if (numeric >= 1_000_000) return `${(numeric / 1_000_000).toFixed(2)}M`
+  if (numeric >= 1_000) return `${(numeric / 1_000).toFixed(2)}K`
+  return formatNumber(numeric)
 }
-
-const getLast24HoursRangeDates = (): { start: string; end: string } => {
-  const end = new Date()
-  const start = new Date(end.getTime() - 24 * 60 * 60 * 1000)
-  return {
-    start: formatLocalDate(start),
-    end: formatLocalDate(end)
-  }
+const formatCost = (value: number | undefined) => {
+  const numeric = Number(value || 0)
+  return numeric >= 1000 ? `${(numeric / 1000).toFixed(2)}K` : numeric.toFixed(numeric >= 1 ? 2 : 3)
 }
-
-// Date range
-const granularity = ref<'day' | 'hour'>('hour')
-const defaultRange = getLast24HoursRangeDates()
-const startDate = ref(defaultRange.start)
-const endDate = ref(defaultRange.end)
-
-// Granularity options for Select component
-const granularityOptions = computed(() => [
-  { value: 'day', label: t('admin.dashboard.day') },
-  { value: 'hour', label: t('admin.dashboard.hour') }
-])
-
-// Dark mode detection
-const isDarkMode = computed(() => {
-  return document.documentElement.classList.contains('dark')
-})
-
-// Chart colors
-const chartColors = computed(() => ({
-  text: isDarkMode.value ? '#e5e7eb' : '#374151',
-  grid: isDarkMode.value ? '#374151' : '#e5e7eb'
-}))
-
-// Line chart options (for user trend chart)
-const lineOptions = computed(() => ({
-  responsive: true,
-  maintainAspectRatio: false,
-  interaction: {
-    intersect: false,
-    mode: 'index' as const
-  },
-  plugins: {
-    legend: {
-      position: 'top' as const,
-      labels: {
-        color: chartColors.value.text,
-        usePointStyle: true,
-        pointStyle: 'circle',
-        padding: 15,
-        font: {
-          size: 11
-        }
-      }
-    },
-    tooltip: {
-      itemSort: (a: any, b: any) => {
-        const aValue = typeof a?.raw === 'number' ? a.raw : Number(a?.parsed?.y ?? 0)
-        const bValue = typeof b?.raw === 'number' ? b.raw : Number(b?.parsed?.y ?? 0)
-        return bValue - aValue
-      },
-      callbacks: {
-        label: (context: any) => {
-          return `${context.dataset.label}: ${formatTokens(context.raw)}`
-        }
-      }
-    }
-  },
-  scales: {
-    x: {
-      grid: {
-        color: chartColors.value.grid
-      },
-      ticks: {
-        color: chartColors.value.text,
-        font: {
-          size: 10
-        }
-      }
-    },
-    y: {
-      grid: {
-        color: chartColors.value.grid
-      },
-      ticks: {
-        color: chartColors.value.text,
-        font: {
-          size: 10
-        },
-        callback: (value: string | number) => formatTokens(Number(value))
-      }
-    }
-  }
-}))
-
-const upstreamTrafficChartData = computed(() => {
-  const trend = upstreamTraffic.value?.trend || []
-  if (!trend.length) return null
-
-  return {
-    labels: trend.map((point) => formatTrafficBucketLabel(point.bucket_start)),
-    datasets: [
-      {
-        label: '总流量',
-        data: trend.map((point) => toFiniteNumber(point.total_bytes)),
-        borderColor: '#0f766e',
-        backgroundColor: '#0f766e18',
-        fill: true,
-        tension: 0.35,
-        pointRadius: 0,
-        pointHitRadius: 10
-      },
-      {
-        label: '上行请求',
-        data: trend.map((point) => toFiniteNumber(point.request_bytes)),
-        borderColor: '#2563eb',
-        backgroundColor: '#2563eb14',
-        fill: false,
-        tension: 0.35,
-        pointRadius: 0,
-        pointHitRadius: 10
-      },
-      {
-        label: '下行响应',
-        data: trend.map((point) => toFiniteNumber(point.response_bytes)),
-        borderColor: '#f97316',
-        backgroundColor: '#f9731614',
-        fill: false,
-        tension: 0.35,
-        pointRadius: 0,
-        pointHitRadius: 10
-      }
-    ]
-  }
-})
-
-const upstreamTrafficChartOptions = computed(() => ({
-  responsive: true,
-  maintainAspectRatio: false,
-  interaction: {
-    intersect: false,
-    mode: 'index' as const
-  },
-  plugins: {
-    legend: {
-      position: 'top' as const,
-      align: 'end' as const,
-      labels: {
-        color: chartColors.value.text,
-        usePointStyle: true,
-        pointStyle: 'circle',
-        boxWidth: 6,
-        font: {
-          size: 11
-        }
-      }
-    },
-    tooltip: {
-      callbacks: {
-        label: (context: any) => {
-          return `${context.dataset.label}: ${formatBytes(context.raw)}`
-        }
-      }
-    }
-  },
-  scales: {
-    x: {
-      grid: {
-        display: false
-      },
-      ticks: {
-        color: chartColors.value.text,
-        font: {
-          size: 10
-        },
-        maxTicksLimit: 8
-      }
-    },
-    y: {
-      grid: {
-        color: chartColors.value.grid
-      },
-      ticks: {
-        color: chartColors.value.text,
-        font: {
-          size: 10
-        },
-        callback: (value: string | number) => formatBytes(Number(value))
-      }
-    }
-  }
-}))
-
-// User trend chart data
-const userTrendChartData = computed(() => {
-  if (!userTrend.value?.length) return null
-
-  const getDisplayName = (point: UserUsageTrendPoint): string => {
-    const username = point.username?.trim()
-    if (username) {
-      return username
-    }
-
-    const email = point.email?.trim()
-    if (email) {
-      return email
-    }
-
-    return t('admin.redeem.userPrefix', { id: point.user_id })
-  }
-
-  // Group by user_id to avoid merging different users with the same display name
-  const userGroups = new Map<number, { name: string; data: Map<string, number> }>()
-  const allDates = new Set<string>()
-
-  userTrend.value.forEach((point) => {
-    allDates.add(point.date)
-    const key = point.user_id
-    if (!userGroups.has(key)) {
-      userGroups.set(key, { name: getDisplayName(point), data: new Map() })
-    }
-    userGroups.get(key)!.data.set(point.date, point.tokens)
-  })
-
-  const sortedDates = Array.from(allDates).sort()
-  const colors = [
-    '#3b82f6',
-    '#10b981',
-    '#f59e0b',
-    '#ef4444',
-    '#8b5cf6',
-    '#ec4899',
-    '#00873c',
-    '#f97316',
-    '#6366f1',
-    '#84cc16',
-    '#06b6d4',
-    '#a855f7'
-  ]
-
-  const datasets = Array.from(userGroups.values()).map((group, idx) => ({
-    label: group.name,
-    data: sortedDates.map((date) => group.data.get(date) || 0),
-    borderColor: colors[idx % colors.length],
-    backgroundColor: `${colors[idx % colors.length]}20`,
-    fill: false,
-    tension: 0.3
-  }))
-
-  return {
-    labels: sortedDates,
-    datasets
-  }
-})
-
-// Format helpers
-const toFiniteNumber = (value: unknown): number => {
-  const numeric = Number(value ?? 0)
-  return Number.isFinite(numeric) ? numeric : 0
-}
-
-const formatTokens = (value: number | undefined): string => {
-  value = toFiniteNumber(value)
-  if (value >= 1_000_000_000) {
-    return `${(value / 1_000_000_000).toFixed(2)}B`
-  } else if (value >= 1_000_000) {
-    return `${(value / 1_000_000).toFixed(2)}M`
-  } else if (value >= 1_000) {
-    return `${(value / 1_000).toFixed(2)}K`
-  }
-  return value.toLocaleString()
-}
-
-const formatNumber = (value: number): string => {
-  value = toFiniteNumber(value)
-  return value.toLocaleString()
-}
-
-const formatCost = (value: number): string => {
-  value = toFiniteNumber(value)
-  if (value >= 1000) {
-    return (value / 1000).toFixed(2) + 'K'
-  } else if (value >= 1) {
-    return value.toFixed(2)
-  } else if (value >= 0.01) {
-    return value.toFixed(3)
-  }
-  return value.toFixed(4)
-}
-
-const formatDuration = (ms: number): string => {
-  if (ms >= 1000) {
-    return `${(ms / 1000).toFixed(2)}s`
-  }
-  return `${Math.round(ms)}ms`
-}
-
-const formatNullableDuration = (ms?: number | null): string => {
-  if (ms === null || ms === undefined) return '-'
-  return formatDuration(ms)
-}
-
-const formatBytes = (value: number | undefined): string => {
-  let bytes = toFiniteNumber(value)
+const formatBytes = (value: number | undefined) => {
+  let bytes = Number(value || 0)
   if (bytes < 1024) return `${Math.round(bytes)} B`
-  const units = ['KB', 'MB', 'GB', 'TB']
-  let unitIndex = -1
-  while (bytes >= 1024 && unitIndex < units.length - 1) {
-    bytes /= 1024
-    unitIndex += 1
-  }
-  const precision = bytes >= 100 ? 0 : bytes >= 10 ? 1 : 2
-  return `${bytes.toFixed(precision)} ${units[unitIndex]}`
+  for (const unit of ['KB', 'MB', 'GB', 'TB']) { bytes /= 1024; if (bytes < 1024) return `${bytes.toFixed(bytes >= 100 ? 0 : 1)} ${unit}` }
+  return `${bytes.toFixed(1)} PB`
 }
-
-const formatTrafficBucketLabel = (value: string): string => {
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return value
-  if (granularity.value === 'hour') {
-    return `${String(date.getHours()).padStart(2, '0')}:00`
-  }
-  return `${date.getMonth() + 1}/${date.getDate()}`
+const formatDuration = (value: number | null | undefined) => {
+  const numeric = Number(value || 0)
+  return numeric >= 1000 ? `${(numeric / 1000).toFixed(2)}s` : `${Math.round(numeric)}ms`
 }
+const goTo = (path: string) => { void router.push(path) }
 
-const dashboardDateRangeToISO = (): { start_time: string; end_time: string } => {
-  const start = new Date(`${startDate.value}T00:00:00`)
-  const end = new Date(`${endDate.value}T23:59:59.999`)
-  return {
-    start_time: start.toISOString(),
-    end_time: end.toISOString()
-  }
-}
-
-const goToUserUsage = (item: UserSpendingRankingItem) => {
-  void router.push({
-    path: '/admin/usage',
-    query: {
-      user_id: String(item.user_id),
-      start_date: startDate.value,
-      end_date: endDate.value
-    }
-  })
-}
-
-// Date range change handler
-const onDateRangeChange = (range: {
-  startDate: string
-  endDate: string
-  preset: string | null
-}) => {
-  // Auto-select granularity based on date range
-  const start = new Date(range.startDate)
-  const end = new Date(range.endDate)
-  const daysDiff = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24))
-
-  // If range is 1 day, use hourly granularity
-  if (daysDiff <= 1) {
-    granularity.value = 'hour'
-  } else {
-    granularity.value = 'day'
-  }
-
-  loadChartData()
-}
-
-// Load data
-const loadDashboardSnapshot = async (includeStats: boolean) => {
-  const currentSeq = ++chartLoadSeq
-  if (includeStats && !stats.value) {
-    loading.value = true
-  }
-  chartsLoading.value = true
-  try {
-    const response = await adminAPI.dashboard.getSnapshotV2({
-      start_date: startDate.value,
-      end_date: endDate.value,
-      granularity: granularity.value,
-      include_stats: includeStats,
-      include_trend: true,
-      include_model_stats: true,
-      include_group_stats: false,
-      include_users_trend: false
-    })
-    if (currentSeq !== chartLoadSeq) return
-    if (includeStats && response.stats) {
-      stats.value = response.stats
-    }
-    trendData.value = response.trend || []
-    modelStats.value = response.models || []
-  } catch (error) {
-    if (currentSeq !== chartLoadSeq) return
-    appStore.showError(t('admin.dashboard.failedToLoad'))
-    console.error('Error loading dashboard snapshot:', error)
-  } finally {
-    if (currentSeq === chartLoadSeq) {
-      loading.value = false
-      chartsLoading.value = false
-    }
-  }
-}
-
-const loadUsersTrend = async () => {
-  const currentSeq = ++usersTrendLoadSeq
-  userTrendLoading.value = true
-  try {
-    const response = await adminAPI.dashboard.getUserUsageTrend({
-      start_date: startDate.value,
-      end_date: endDate.value,
-      granularity: granularity.value,
-      limit: 12
-    })
-    if (currentSeq !== usersTrendLoadSeq) return
-    userTrend.value = response.trend || []
-  } catch (error) {
-    if (currentSeq !== usersTrendLoadSeq) return
-    console.error('Error loading users trend:', error)
-    userTrend.value = []
-  } finally {
-    if (currentSeq === usersTrendLoadSeq) {
-      userTrendLoading.value = false
-    }
-  }
-}
-
-const loadUserSpendingRanking = async () => {
-  const currentSeq = ++rankingLoadSeq
-  rankingLoading.value = true
-  rankingError.value = false
-  try {
-    const response = await adminAPI.dashboard.getUserSpendingRanking({
-      start_date: startDate.value,
-      end_date: endDate.value,
-      limit: rankingLimit
-    })
-    if (currentSeq !== rankingLoadSeq) return
-    rankingItems.value = response.ranking || []
-    rankingTotalActualCost.value = response.total_actual_cost || 0
-    rankingTotalRequests.value = response.total_requests || 0
-    rankingTotalTokens.value = response.total_tokens || 0
-  } catch (error) {
-    if (currentSeq !== rankingLoadSeq) return
-    console.error('Error loading user spending ranking:', error)
-    rankingItems.value = []
-    rankingTotalActualCost.value = 0
-    rankingTotalRequests.value = 0
-    rankingTotalTokens.value = 0
-    rankingError.value = true
-  } finally {
-    if (currentSeq === rankingLoadSeq) {
-      rankingLoading.value = false
-    }
-  }
-}
-
-const loadUpstreamTraffic = async () => {
-  const currentSeq = ++upstreamTrafficLoadSeq
+const loadDashboard = async () => {
+  loading.value = true
   upstreamTrafficLoading.value = true
+  const now = new Date()
+  const start = new Date(now.getTime() - 24 * 60 * 60 * 1000)
   try {
-    const response = await opsAPI.getUpstreamTrafficStats(dashboardDateRangeToISO())
-    if (currentSeq !== upstreamTrafficLoadSeq) return
-    upstreamTraffic.value = response
+    const [nextStats, nextTraffic] = await Promise.all([
+      adminAPI.dashboard.getStats(),
+      opsAPI.getUpstreamTrafficStats({ start_time: start.toISOString(), end_time: now.toISOString() })
+    ])
+    stats.value = nextStats
+    upstreamTraffic.value = nextTraffic
   } catch (error) {
-    if (currentSeq !== upstreamTrafficLoadSeq) return
-    console.error('Error loading upstream traffic:', error)
-    upstreamTraffic.value = null
+    console.error('Failed to load operations overview:', error)
+    if (!stats.value) window.setTimeout(() => undefined, 0)
   } finally {
-    if (currentSeq === upstreamTrafficLoadSeq) {
-      upstreamTrafficLoading.value = false
-    }
+    loading.value = false
+    upstreamTrafficLoading.value = false
   }
-}
-
-const loadDashboardStats = async () => {
-  await Promise.all([
-    loadDashboardSnapshot(true),
-    loadUsersTrend(),
-    loadUserSpendingRanking(),
-    loadUpstreamTraffic()
-  ])
 }
 
 const refreshDashboard = async () => {
-  await loadDashboardStats()
+  await loadDashboard()
 }
 
-const loadChartData = async () => {
-  await Promise.all([
-    loadDashboardSnapshot(false),
-    loadUsersTrend(),
-    loadUserSpendingRanking(),
-    loadUpstreamTraffic()
-  ])
-}
-
-onMounted(() => {
-  loadDashboardStats()
-})
+onMounted(() => { void loadDashboard() })
 </script>
 
 <style scoped>
+.ops-overview { display: grid; gap: 20px; max-width: 1440px; margin: 0 auto; color: #17201f; }
+.ops-overview__head { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; padding: 4px 0 2px; }
+.ops-overview__eyebrow, .ops-traffic__eyebrow { margin: 0 0 5px; color: #5d6b68; font-size: 11px; font-weight: 700; letter-spacing: 0; text-transform: uppercase; }
+.ops-overview__title { margin: 0; font-size: 24px; font-weight: 650; line-height: 1.15; letter-spacing: 0; }
+.ops-overview__refresh, .ops-traffic__action { min-height: 34px; border: 1px solid #d7e0dd; border-radius: 8px; background: #fff; color: #30413d; font-size: 13px; font-weight: 600; padding: 0 12px; transition: border-color .16s ease, background-color .16s ease; }
+.ops-overview__refresh:hover, .ops-traffic__action:hover { border-color: #93b8af; background: #f5faf8; }
+.ops-overview__refresh:focus-visible, .ops-traffic__action:focus-visible, .ops-kpi:focus-visible, .ops-action:focus-visible { outline: 2px solid #147d6c; outline-offset: 2px; }
+.ops-overview__loading, .ops-traffic__loading { display: flex; align-items: center; justify-content: center; min-height: 260px; }
+.ops-kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); border: 1px solid #dce5e2; border-radius: 8px; background: #fff; overflow: hidden; }
+.ops-kpi { min-width: 0; padding: 18px 20px; border-right: 1px solid #e5ecea; background: transparent; color: inherit; text-align: left; transition: background-color .16s ease; }
+.ops-kpi:last-child { border-right: 0; }.ops-kpi:hover { background: #f5faf8; }.ops-kpi--supply { box-shadow: inset 3px 0 0 #147d6c; }
+.ops-kpi__label { margin: 0; color: #687875; font-size: 12px; font-weight: 600; }.ops-kpi__value { margin: 9px 0 6px; color: #17201f; font-size: 25px; font-weight: 650; line-height: 1; }.ops-kpi__value span { color: #91a09d; font-size: 15px; font-weight: 600; }.ops-kpi__meta { margin: 0; color: #687875; font-size: 12px; line-height: 1.4; }.ops-kpi__meta--healthy { color: #147d6c; }.ops-kpi__meta--attention { color: #b45309; }
+.ops-traffic { border: 1px solid #dce5e2; border-radius: 8px; background: #fff; overflow: hidden; }.ops-traffic__head { display: flex; justify-content: space-between; align-items: flex-start; gap: 18px; padding: 18px 20px; border-bottom: 1px solid #e5ecea; }.ops-traffic__title { margin: 0; font-size: 16px; font-weight: 650; line-height: 1.3; }.ops-traffic__stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); border-bottom: 1px solid #e5ecea; }.ops-traffic__stat { min-width: 0; padding: 16px 20px; border-right: 1px solid #e5ecea; }.ops-traffic__stat:last-child { border-right: 0; }.ops-traffic__stat p { margin: 0; color: #687875; font-size: 12px; }.ops-traffic__stat strong { display: block; overflow: hidden; margin-top: 7px; color: #17201f; font-size: 19px; font-weight: 650; text-overflow: ellipsis; white-space: nowrap; }.ops-traffic__table-wrap { overflow-x: auto; }.ops-traffic__table { width: 100%; min-width: 620px; border-collapse: collapse; font-size: 13px; }.ops-traffic__table th { padding: 11px 20px; border-bottom: 1px solid #e5ecea; color: #778582; font-size: 11px; font-weight: 650; text-align: right; text-transform: uppercase; }.ops-traffic__table th:first-child, .ops-traffic__table td:first-child { text-align: left; }.ops-traffic__table td { padding: 13px 20px; border-bottom: 1px solid #edf1ef; color: #55635f; text-align: right; }.ops-traffic__table td:first-child { color: #24322f; font-weight: 600; }.ops-traffic__table tbody tr:not(:only-child) { cursor: pointer; }.ops-traffic__table tbody tr:not(:only-child):hover { background: #f5faf8; }.ops-traffic__table tbody tr:last-child td { border-bottom: 0; }.ops-traffic__empty { padding: 36px 20px !important; color: #778582 !important; font-weight: 400 !important; text-align: center !important; }
+.ops-actions { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); border-top: 1px solid #dce5e2; }.ops-action { display: flex; min-width: 0; align-items: center; justify-content: space-between; gap: 16px; padding: 16px 4px 16px 0; color: #22312e; text-align: left; }.ops-action + .ops-action { padding-left: 20px; border-left: 1px solid #dce5e2; }.ops-action span { min-width: 0; }.ops-action strong, .ops-action small { display: block; }.ops-action strong { font-size: 13px; font-weight: 650; }.ops-action small { overflow: hidden; margin-top: 5px; color: #687875; font-size: 12px; line-height: 1.4; text-overflow: ellipsis; white-space: nowrap; }.ops-action b { color: #147d6c; font-size: 18px; font-weight: 500; transition: transform .16s ease; }.ops-action:hover b { transform: translateX(3px); }
+:global(.dark) .ops-overview { color: #e3ece9; }:global(.dark) .ops-overview__title, :global(.dark) .ops-kpi__value, :global(.dark) .ops-traffic__title, :global(.dark) .ops-traffic__stat strong, :global(.dark) .ops-traffic__table td:first-child, :global(.dark) .ops-action { color: #edf5f2; }:global(.dark) .ops-kpi__label, :global(.dark) .ops-kpi__meta, :global(.dark) .ops-traffic__stat p, :global(.dark) .ops-traffic__table td, :global(.dark) .ops-action small { color: #a7b7b2; }:global(.dark) .ops-overview__refresh, :global(.dark) .ops-traffic__action, :global(.dark) .ops-kpis, :global(.dark) .ops-traffic { border-color: #31423e; background: #17211f; }:global(.dark) .ops-overview__refresh, :global(.dark) .ops-traffic__action { color: #d9e7e2; }:global(.dark) .ops-overview__refresh:hover, :global(.dark) .ops-traffic__action:hover, :global(.dark) .ops-kpi:hover, :global(.dark) .ops-traffic__table tbody tr:not(:only-child):hover { background: #20302c; }:global(.dark) .ops-kpi, :global(.dark) .ops-traffic__stat, :global(.dark) .ops-action + .ops-action { border-color: #31423e; }:global(.dark) .ops-traffic__head, :global(.dark) .ops-traffic__stats, :global(.dark) .ops-traffic__table th, :global(.dark) .ops-traffic__table td { border-color: #2a3a36; }
+@media (max-width: 1023px) { .ops-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }.ops-kpi:nth-child(2) { border-right: 0; }.ops-kpi:nth-child(-n+2) { border-bottom: 1px solid #e5ecea; }.ops-traffic__stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }.ops-traffic__stat:nth-child(2) { border-right: 0; }.ops-traffic__stat:nth-child(-n+2) { border-bottom: 1px solid #e5ecea; }.ops-actions { grid-template-columns: 1fr; }.ops-action, .ops-action + .ops-action { padding: 14px 0; border-left: 0; }.ops-action + .ops-action { border-top: 1px solid #dce5e2; } }
+@media (max-width: 640px) { .ops-overview__head, .ops-traffic__head { align-items: stretch; flex-direction: column; }.ops-overview__refresh, .ops-traffic__action { width: 100%; }.ops-kpis, .ops-traffic__stats { grid-template-columns: 1fr; }.ops-kpi, .ops-kpi:nth-child(2), .ops-traffic__stat, .ops-traffic__stat:nth-child(2) { border-right: 0; border-bottom: 1px solid #e5ecea; }.ops-kpi:last-child, .ops-traffic__stat:last-child { border-bottom: 0; }.ops-kpi:nth-child(-n+2), .ops-traffic__stat:nth-child(-n+2) { border-bottom: 1px solid #e5ecea; }.ops-overview__title { font-size: 22px; } }
+@media (prefers-reduced-motion: reduce) { .ops-overview *, .ops-overview *::before, .ops-overview *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; } }
 </style>

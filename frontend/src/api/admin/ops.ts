@@ -462,6 +462,50 @@ export interface OpsAccountAvailabilityStatsResponse {
   timestamp?: string
 }
 
+export type OpsRoutingWindow = '15m' | '1h' | '6h' | '24h'
+
+export interface OpsAccountRoutingStats {
+  account_id: number
+  account_name: string
+  platform: string
+  group_id?: number | null
+  group_name?: string
+  priority: number
+  account_priority: number
+  group_priority?: number | null
+  load_factor: number
+  schedulable: boolean
+  status: string
+  request_count: number
+  success_count: number
+  error_count: number
+  request_share: number
+  success_rate?: number | null
+  avg_latency_ms?: number | null
+  avg_ttft_ms?: number | null
+  selection_role: 'preferred' | 'fallback' | 'unavailable' | string
+}
+
+export interface OpsAccountRoutingStatsResponse {
+  window: OpsRoutingWindow
+  start_time: string
+  end_time: string
+  platform: string
+  group_id?: number | null
+  total_requests: number
+  accounts: OpsAccountRoutingStats[]
+  generated_at: string
+}
+
+export async function getAccountRoutingStats(params: {
+  window: OpsRoutingWindow
+  platform?: string
+  group_id?: number | null
+}): Promise<OpsAccountRoutingStatsResponse> {
+  const { data } = await apiClient.get<OpsAccountRoutingStatsResponse>('/admin/ops/account-routing', { params })
+  return data
+}
+
 export async function getAccountAvailabilityStats(platform?: string, groupId?: number | null): Promise<OpsAccountAvailabilityStatsResponse> {
   const params: Record<string, any> = {}
   if (platform) {
@@ -953,6 +997,8 @@ export interface OpsErrorLog {
 
   severity: OpsSeverity
   status_code: number
+  upstream_status_code?: number | null
+  recovered: boolean
   platform: string
   model: string
 
@@ -1391,6 +1437,7 @@ export const opsAPI = {
   getConcurrencyStats,
   getUserConcurrencyStats,
   getAccountAvailabilityStats,
+  getAccountRoutingStats,
   getRealtimeTrafficSummary,
   subscribeQPS,
 

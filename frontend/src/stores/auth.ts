@@ -114,10 +114,15 @@ export const useAuthStore = defineStore('auth', () => {
         refreshTokenValue.value = savedRefreshToken
         tokenExpiresAt.value = savedExpiresAt ? parseInt(savedExpiresAt, 10) : null
 
-        // Immediately refresh user data from backend (async, don't block)
-        refreshUser().catch((error) => {
-          console.error('Failed to refresh user on init:', error)
-        })
+        // Let Vue finish the initial route mount before an expired session can
+        // trigger the HTTP interceptor's login redirect. Redirecting while
+        // the root vnode is mounting can leave the application blank.
+        setTimeout(() => {
+          if (token.value !== savedToken) return
+          refreshUser().catch((error) => {
+            console.error('Failed to refresh user on init:', error)
+          })
+        }, 0)
 
         // Start auto-refresh interval for user data
         startAutoRefresh()

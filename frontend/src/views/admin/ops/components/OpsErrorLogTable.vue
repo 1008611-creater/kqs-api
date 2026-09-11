@@ -158,6 +158,16 @@
                   >
                     {{ log.status_code }}
                   </span>
+                  <el-tooltip
+                    v-if="log.recovered && log.upstream_status_code"
+                    :content="t('admin.ops.errorLog.recoveredUpstreamStatus', { status: log.upstream_status_code })"
+                    placement="top"
+                    :show-after="500"
+                  >
+                    <span class="rounded bg-emerald-50 px-1.5 py-0.5 text-[10px] font-bold text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400">
+                      {{ t('admin.ops.errorLog.recovered') }}
+                    </span>
+                  </el-tooltip>
                   <span
                     v-if="log.severity"
                     :class="['rounded px-1.5 py-0.5 text-[10px] font-bold', getSeverityClass(log.severity)]"
@@ -307,6 +317,7 @@ function getStatusClass(code: number): string {
   if (code >= 500) return 'bg-red-50 text-red-700 ring-red-600/20 dark:bg-red-900/30 dark:text-red-400 dark:ring-red-500/30'
   if (code === 429) return 'bg-purple-50 text-purple-700 ring-purple-600/20 dark:bg-purple-900/30 dark:text-purple-400 dark:ring-purple-500/30'
   if (code >= 400) return 'bg-amber-50 text-amber-700 ring-amber-600/20 dark:bg-amber-900/30 dark:text-amber-400 dark:ring-amber-500/30'
+  if (code >= 200 && code < 400) return 'bg-emerald-50 text-emerald-700 ring-emerald-600/20 dark:bg-emerald-900/30 dark:text-emerald-400 dark:ring-emerald-500/30'
   return 'bg-gray-50 text-gray-700 ring-gray-600/20 dark:bg-gray-900/30 dark:text-gray-400 dark:ring-gray-500/30'
 }
 

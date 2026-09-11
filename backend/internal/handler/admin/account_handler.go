@@ -133,6 +133,11 @@ type UpdateAccountRequest struct {
 	ConfirmMixedChannelRisk *bool          `json:"confirm_mixed_channel_risk"` // 用户确认混合渠道风险
 }
 
+type UpdateAccountGroupPriorityRequest struct {
+	GroupID  int64 `json:"group_id" binding:"required,gt=0"`
+	Priority int   `json:"priority" binding:"required,gt=0"`
+}
+
 // BulkUpdateAccountsRequest represents the payload for bulk editing accounts
 type BulkUpdateAccountsRequest struct {
 	AccountIDs              []int64                   `json:"account_ids"`
@@ -652,6 +657,36 @@ func (h *AccountHandler) Update(c *gin.Context) {
 		h.scheduleOpenAIResponsesProbe(account)
 	}
 
+	response.Success(c, h.buildAccountResponseWithRuntime(c.Request.Context(), account))
+}
+
+type accountGroupPriorityAdminUpdater interface {
+	UpdateAccountGroupPriority(ctx context.Context, accountID, groupID int64, priority int) (*service.Account, error)
+}
+
+// UpdateGroupPriority updates the selected group's effective priority for an account.
+// PUT /api/v1/admin/accounts/:id/group-priority
+func (h *AccountHandler) UpdateGroupPriority(c *gin.Context) {
+	accountID, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil || accountID <= 0 {
+		response.BadRequest(c, "Invalid account ID")
+		return
+	}
+	var req UpdateAccountGroupPriorityRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "Invalid request: "+err.Error())
+		return
+	}
+	updater, ok := h.adminService.(accountGroupPriorityAdminUpdater)
+	if !ok {
+		response.Error(c, http.StatusServiceUnavailable, "Account group priority update is not available")
+		return
+	}
+	account, err := updater.UpdateAccountGroupPriority(c.Request.Context(), accountID, req.GroupID, req.Priority)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
 	response.Success(c, h.buildAccountResponseWithRuntime(c.Request.Context(), account))
 }
 

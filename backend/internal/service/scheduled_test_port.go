@@ -60,6 +60,17 @@ type PublicChannelStatusSample struct {
 	CheckedAt time.Time
 }
 
+// ScheduledTestAccountTelemetry is a small, read-only probe summary used by
+// the gateway scheduler after a process restart. It deliberately contains no
+// upstream response body or credential material.
+type ScheduledTestAccountTelemetry struct {
+	AccountID        int64
+	SampleCount      int
+	SuccessRate      float64
+	AverageLatencyMs float64
+	LastCheckedAt    time.Time
+}
+
 type PublicChannelStatusStats struct {
 	ActiveChannels   int
 	CheckedChannels  int
@@ -88,5 +99,6 @@ type ScheduledTestResultRepository interface {
 	Create(ctx context.Context, result *ScheduledTestResult) (*ScheduledTestResult, error)
 	ListByPlanID(ctx context.Context, planID int64, limit int) ([]*ScheduledTestResult, error)
 	GetPublicChannelStatusStats(ctx context.Context, groupNames []string, accountNames []string, modelID string, now time.Time, recentLimit int) (*PublicChannelStatusStats, error)
+	GetRecentAccountTelemetry(ctx context.Context, accountIDs []int64, now time.Time) (map[int64]ScheduledTestAccountTelemetry, error)
 	PruneOldResults(ctx context.Context, planID int64, keepCount int) error
 }

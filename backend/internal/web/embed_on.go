@@ -251,7 +251,43 @@ func (s *FrontendServer) indexHTMLForRequest() ([]byte, bool) {
 	if err != nil || len(content) == 0 {
 		return s.baseHTML, false
 	}
+	if !frontendOverrideMatchesEmbeddedEntry(s.baseHTML, content) {
+		// A stale override can point at a renamed entry chunk while its lazy
+		// chunks still import the embedded entry name. Serving both creates two
+		// Vue application instances and can leave RouterView mounted as a blank
+		// page. Fall back to the embedded release instead.
+		return s.baseHTML, false
+	}
 	return content, true
+}
+
+func frontendOverrideMatchesEmbeddedEntry(baseHTML, overrideHTML []byte) bool {
+	baseEntry := frontendEntryScriptName(baseHTML)
+	overrideEntry := frontendEntryScriptName(overrideHTML)
+	if overrideEntry == "" {
+		// Small HTML overrides used by tests or operators may not contain the
+		// Vite entry script and should keep their existing behavior.
+		return true
+	}
+	return baseEntry != "" && baseEntry == overrideEntry
+}
+
+func frontendEntryScriptName(html []byte) string {
+	const marker = `<script type="module" crossorigin src="`
+	start := bytes.Index(html, []byte(marker))
+	if start == -1 {
+		return ""
+	}
+	start += len(marker)
+	end := bytes.IndexByte(html[start:], '"')
+	if end == -1 {
+		return ""
+	}
+	src := strings.TrimSpace(string(html[start : start+end]))
+	if !strings.HasPrefix(src, "/assets/") {
+		return ""
+	}
+	return filepath.Base(src)
 }
 
 // injectSiteTitle replaces the static <title> in HTML with the configured site name.

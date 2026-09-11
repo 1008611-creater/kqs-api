@@ -5,10 +5,6 @@
         <div class="affiliate-hero__copy">
           <p class="affiliate-kicker">AFFILIATE REBATE</p>
           <h1>邀请返利</h1>
-          <p>
-            分享你的专属邀请链接。新用户通过链接注册并充值余额、购买或兑换订阅后，
-            返利额度会进入你的账户，确认后可一键转入余额继续使用。
-          </p>
           <div class="affiliate-hero__actions">
             <button
               type="button"
@@ -318,14 +314,6 @@ onMounted(() => {
   font-weight: 950;
   line-height: 0.95;
   letter-spacing: -0.04em;
-}
-
-.affiliate-hero__copy > p {
-  max-width: 42rem;
-  margin: 1rem 0 0;
-  color: rgba(220, 239, 224, 0.68);
-  font-size: 0.98rem;
-  line-height: 1.9;
 }
 
 .affiliate-hero__actions {
