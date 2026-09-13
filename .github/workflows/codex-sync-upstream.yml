@@ -1,0 +1,110 @@
+name: Codex Sync Upstream
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - codex/sync-upstream
+
+permissions:
+  contents: write
+
+concurrency:
+  group: codex-sync-upstream
+  cancel-in-progress: true
+
+env:
+  BASE_SHA: 63b0631a58272e88af0d83aa168f65787c53a746
+  UPSTREAM_URL: https://github.com/Wei-Shaw/sub2api.git
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Configure git
+        run: |
+          set -euo pipefail
+          git config --global user.name "codex-sync"
+          git config --global user.email "codex-sync@users.noreply.github.com"
+          git config --global merge.renameLimit 999999
+          git config --global diff.renameLimit 999999
+          git config --global merge.renames true
+          git config --global diff.renames copies
+          git config --global core.longpaths true
+
+      - name: Fetch upstream
+        id: fetch
+        run: |
+          set -euo pipefail
+          git remote add upstream "$UPSTREAM_URL" 2>/dev/null || git remote set-url upstream "$UPSTREAM_URL"
+          git fetch --no-tags --prune upstream main
+          echo "upstream_sha=$(git rev-parse FETCH_HEAD)" >> "$GITHUB_OUTPUT"
+          echo "local_sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Build synthetic baseline
+        id: prep
+        run: |
+          set -euo pipefail
+          git cat-file -e "${BASE_SHA}^{commit}"
+          syn=$(git commit-tree "$(git rev-parse HEAD^{tree})" -p "$BASE_SHA" -m "synthetic kqs baseline")
+          echo "syn=$syn" >> "$GITHUB_OUTPUT"
+
+      - name: Merge upstream into kqs baseline
+        id: merge
+        run: |
+          set -uo pipefail
+          mw="$RUNNER_TEMP/mw"
+          git worktree add --detach "$mw" "${{ steps.fetch.outputs.upstream_sha }}"
+          git -C "$mw" merge --no-commit --no-ff "${{ steps.prep.outputs.syn }}"
+          echo "exit=$?" >> "$GITHUB_OUTPUT"
+          exit 0
+
+      - name: Generate merge report
+        env:
+          MERGE_EXIT: ${{ steps.merge.outputs.exit }}
+        run: |
+          set -euo pipefail
+          node "$GITHUB_WORKSPACE/tools/codex-sync-report.mjs" \
+            "$RUNNER_TEMP/mw" "$GITHUB_WORKSPACE/.codex-merge" \
+            "{\"localSha\":\"${{ steps.fetch.outputs.local_sha }}\",\"upstreamSha\":\"${{ steps.fetch.outputs.upstream_sha }}\",\"baseSha\":\"${BASE_SHA}\"}"
+          {
+            echo "### Upstream sync merge report"
+            echo ""
+            echo "- local: `${{ steps.fetch.outputs.local_sha }}`"
+            echo "- upstream: `${{ steps.fetch.outputs.upstream_sha }}`"
+            echo "- merge exit: `${{ steps.merge.outputs.exit }}`"
+            echo ""
+            echo "```"
+            head -n 80 "$GITHUB_WORKSPACE/.codex-merge/conflicts.txt" || true
+            echo "```"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Publish conflict snapshot
+        if: ${{ steps.merge.outputs.exit != '0' }}
+        run: |
+          set -euo pipefail
+          mw="$RUNNER_TEMP/mw"
+          git -C "$mw" add -A
+          git -C "$mw" commit --no-verify -m "wip: upstream merge snapshot (conflicts unresolved) [skip ci]"
+          git -C "$mw" push -f origin "HEAD:refs/heads/codex/sync-conflict-state"
+
+      - name: Publish clean merge
+        if: ${{ steps.merge.outputs.exit == '0' }}
+        run: |
+          set -euo pipefail
+          mw="$RUNNER_TEMP/mw"
+          git -C "$mw" commit --no-verify -m "chore(sync): merge upstream ${{ steps.fetch.outputs.upstream_sha }}"
+          git -C "$mw" push -f origin "HEAD:refs/heads/codex/sync-upstream-merged"
+
+      - name: Publish report
+        run: |
+          set -euo pipefail
+          git add -f .codex-merge
+          git commit --no-verify -m "chore(sync): upstream merge report [skip ci]" || true
+          git push origin "HEAD:refs/heads/codex/sync-upstream"
