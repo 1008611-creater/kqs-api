@@ -78,41 +78,27 @@ jobs:
           node "$GITHUB_WORKSPACE/tools/codex-sync-report.mjs" \
             "$RUNNER_TEMP/mw" "$GITHUB_WORKSPACE/.codex-merge" \
             "{\"localSha\":\"${{ steps.fetch.outputs.local_sha }}\",\"upstreamSha\":\"${{ steps.fetch.outputs.upstream_sha }}\",\"baseSha\":\"${BASE_SHA}\"}"
-          {
-            echo "### Upstream sync merge report"
-            echo ""
-            echo "- local: \`${{ steps.fetch.outputs.local_sha }}\`"
-            echo "- upstream: \`${{ steps.fetch.outputs.upstream_sha }}\`"
-            echo "- merge exit: \`${{ steps.merge.outputs.exit }}\`"
-            echo ""
-            echo "\`\`\`"
-            head -n 200 "$GITHUB_WORKSPACE/.codex-merge/conflicts.txt" 2>/dev/null || true
-            echo "\`\`\`"
-          } >> "$GITHUB_STEP_SUMMARY"
+          echo "report exit: $?"
           exit 0
 
-      - name: Publish conflict snapshot
-        if: ${{ always() && steps.merge.outputs.exit != '0' }}
+      - name: Pack merged worktree
+        if: ${{ always() }}
         run: |
           set +e
           set -uo pipefail
-          mw="$RUNNER_TEMP/mw"
-          git -C "$mw" add -A
-          git -C "$mw" commit --no-verify -m "wip: upstream merge snapshot (conflicts unresolved) [skip ci]"
-          git -C "$mw" push -f origin "HEAD:refs/heads/codex/sync-conflict-state"
-          echo "snapshot push exit: $?"
+          cd "$RUNNER_TEMP/mw"
+          tar --exclude=.git -czf "$RUNNER_TEMP/merged-tree.tar.gz" .
+          ls -la "$RUNNER_TEMP/merged-tree.tar.gz"
           exit 0
 
-      - name: Publish clean merge
-        if: ${{ always() && steps.merge.outputs.exit == '0' }}
-        run: |
-          set +e
-          set -uo pipefail
-          mw="$RUNNER_TEMP/mw"
-          git -C "$mw" commit --no-verify -m "chore(sync): merge upstream ${{ steps.fetch.outputs.upstream_sha }}"
-          git -C "$mw" push -f origin "HEAD:refs/heads/codex/sync-upstream-merged"
-          echo "clean merge push exit: $?"
-          exit 0
+      - name: Upload merged worktree artifact
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: merged-worktree
+          path: ${{ runner.temp }}/merged-tree.tar.gz
+          retention-days: 14
+          if-no-files-found: warn
 
       - name: Publish report
         if: ${{ always() }}
