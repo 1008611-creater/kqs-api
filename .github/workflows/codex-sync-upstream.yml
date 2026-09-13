@@ -81,6 +81,29 @@ jobs:
           echo "report exit: $?"
           exit 0
 
+      - name: Stage conflicted files for pickup
+        if: ${{ always() }}
+        run: |
+          set +e
+          set -uo pipefail
+          mw="$RUNNER_TEMP/mw"
+          out="$GITHUB_WORKSPACE/.codex-merge/conflicts"
+          rm -rf "$out"
+          mkdir -p "$out"
+          cd "$mw"
+          n=0
+          git diff --name-only --diff-filter=U > "$RUNNER_TEMP/ulist.txt" 2>/dev/null || true
+          while IFS= read -r f; do
+            [ -z "$f" ] && continue
+            mkdir -p "$out/$(dirname "$f")"
+            cp "$f" "$out/$f" 2>/dev/null || true
+            n=$((n+1))
+          done < "$RUNNER_TEMP/ulist.txt"
+          echo "copied conflicted files: $n"
+          git -C "$mw" ls-files -u > "$GITHUB_WORKSPACE/.codex-merge/unmerged.txt" 2>/dev/null || true
+          git -C "$mw" status --porcelain > "$GITHUB_WORKSPACE/.codex-merge/git-status.txt" 2>/dev/null || true
+          du -sh "$out" || true
+          exit 0
       - name: Pack merged worktree
         if: ${{ always() }}
         run: |
@@ -91,21 +114,6 @@ jobs:
           ls -la "$RUNNER_TEMP/merged-tree.tar.gz"
           exit 0
 
-      - name: Push raw merge snapshot
-        if: ${{ always() }}
-        run: |
-          set +e
-          set -uo pipefail
-          mw="$RUNNER_TEMP/mw"
-          git -C "$mw" rm -rf .github/workflows >/dev/null 2>&1 || true
-          git -C "$mw" checkout HEAD -- .github/workflows
-          git -C "$mw" add -A
-          echo "workflow paths changed vs upstream: $(git -C "$mw" diff --cached --name-only HEAD -- .github/workflows | wc -l)"
-          git -C "$mw" -c user.name=codex-sync -c user.email=codex-sync@users.noreply.github.com commit --no-verify -m "wip: raw upstream merge snapshot (conflicts unresolved)"
-          echo "commit exit: $?"
-          git -C "$mw" push -f origin "HEAD:refs/heads/codex/sync-merge-raw"
-          echo "raw push exit: $?"
-          exit 0
       - name: Upload merged worktree artifact
         if: ${{ always() }}
         uses: actions/upload-artifact@v4
