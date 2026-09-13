@@ -1,3 +1,6 @@
+A  .codex-merge/conflicts.txt
+A  .codex-merge/report.json
+A  .codex-merge/status.txt
 M  .dockerignore
 M  .gitattributes
 A  .github/workflows/ci.yml
