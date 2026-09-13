@@ -1,0 +1,1027 @@
+{
+  "generatedAt": "2026-09-13T12:54:14.524Z",
+  "localSha": "30cc89ed8e5c65803cb7c2b9d979625e607bf3a3",
+  "upstreamSha": "bdb42e22f81fcb633ff0a060961211dd2bcb515b",
+  "baseSha": "63b0631a58272e88af0d83aa168f65787c53a746",
+  "mergeExit": -1,
+  "changedFiles": 372,
+  "conflictCount": 145,
+  "totalHunks": 341,
+  "conflicts": [
+    {
+      "path": "frontend/public/logo.png",
+      "hunks": 0,
+      "oursLines": 0,
+      "theirsLines": 0,
+      "bytes": 21612
+    },
+    {
+      "path": "frontend/src/i18n/locales/en.ts",
+      "hunks": 0,
+      "oursLines": 0,
+      "theirsLines": 0,
+      "bytes": 356406
+    },
+    {
+      "path": "frontend/src/i18n/locales/zh.ts",
+      "hunks": 0,
+      "oursLines": 0,
+      "theirsLines": 0,
+      "bytes": 354285
+    },
+    {
+      "path": "backend/go.sum",
+      "hunks": 1,
+      "oursLines": 2,
+      "theirsLines": 4,
+      "bytes": 72774
+    },
+    {
+      "path": "backend/internal/handler/admin/account_codex_import_test.go",
+      "hunks": 1,
+      "oursLines": 1,
+      "theirsLines": 121,
+      "bytes": 43489
+    },
+    {
+      "path": "backend/internal/handler/admin/account_codex_import.go",
+      "hunks": 1,
+      "oursLines": 19,
+      "theirsLines": 15,
+      "bytes": 48958
+    },
+    {
+      "path": "backend/internal/handler/admin/account_handler_available_models_test.go",
+      "hunks": 1,
+      "oursLines": 111,
+      "theirsLines": 1,
+      "bytes": 17987
+    },
+    {
+      "path": "backend/internal/handler/admin/setting_handler.go",
+      "hunks": 1,
+      "oursLines": 0,
+      "theirsLines": 2262,
+      "bytes": 152481
+    },
+    {
+      "path": "backend/internal/handler/channel_monitor_user_handler.go",
+      "hunks": 1,
+      "oursLines": 1,
+      "theirsLines": 21,
+      "bytes": 10534
+    },
+    {
+      "path": "backend/internal/handler/dto/settings.go",
+      "hunks": 1,
+      "oursLines": 9,
+      "theirsLines": 1,
+      "bytes": 38375
+    },
+    {
+      "path": "backend/internal/handler/gateway_handler_responses.go",
+      "hunks": 1,
+      "oursLines": 1,
+      "theirsLines": 6,
+      "bytes": 16329
+    },
+    {
+      "path": "backend/internal/handler/openai_gateway_handler_test.go",
+      "hunks": 1,
+      "oursLines": 1,
+      "theirsLines": 1,
+      "bytes": 117141
+    },
+    {
+      "path": "backend/internal/pkg/antigravity/client_test.go",
+      "hunks": 1,
+      "oursLines": 1,
+      "theirsLines": 28,
+      "bytes": 60253
+    },
+    {
+      "path": "backend/internal/pkg/antigravity/client.go",
+      "hunks": 1,
+      "oursLines": 0,
+      "theirsLines": 4,
+      "bytes": 29662
+    },
+    {
+      "path": "backend/internal/repository/http_upstream.go",
+      "hunks": 1,
+      "oursLines": 2,
+      "theirsLines": 4,
+      "bytes": 54767
+    },
+    {
+      "path": "backend/internal/repository/migrations_runner.go",
+      "hunks": 1,
+      "oursLines": 10,
+      "theirsLines": 2,
+      "bytes": 25812
+    },
+    {
+      "path": "backend/internal/repository/usage_log_repo_request_type_test.go",
+      "hunks": 1,
+      "oursLines": 5,
+      "theirsLines": 5,
+      "bytes": 43370
+    },
+    {
+      "path": "backend/internal/server/api_contract_test.go",
+      "hunks": 1,
+      "oursLines": 1,
+      "theirsLines": 1,
+      "bytes": 114133
+    },
+    {
+      "path": "backend/internal/server/http.go",
+      "hunks": 1,
+      "oursLines": 1,
+      "theirsLines": 1,
+      "bytes": 7114
+    },
+    {
+      "path": "backend/internal/server/middleware/api_key_auth_google_test.go",
+      "hunks": 1,
+      "oursLines": 4,
+      "theirsLines": 1,
+      "bytes": 32100
+    },
+    {
+      "path": "backend/internal/server/middleware/api_key_auth_test.go",
+      "hunks": 1,
+      "oursLines": 5,
+      "theirsLines": 1,
+      "bytes": 56980
+    },
+    {
+      "path": "backend/internal/server/routes/auth.go",
+      "hunks": 1,
+      "oursLines": 7,
+      "theirsLines": 1,
+      "bytes": 12609
+    },
+    {
+      "path": "backend/internal/service/account_anthropic_passthrough_test.go",
+      "hunks": 1,
+      "oursLines": 54,
+      "theirsLines": 19,
+      "bytes": 3780
+    },
+    {
+      "path": "backend/internal/service/account_usage_service.go",
+      "hunks": 1,
+      "oursLines": 2,
+      "theirsLines": 2,
+      "bytes": 67478
+    },
+    {
+      "path": "backend/internal/service/account.go",
+      "hunks": 1,
+      "oursLines": 9,
+      "theirsLines": 6,
+      "bytes": 97364
+    },
+    {
+      "path": "backend/internal/service/admin_service.go",
+      "hunks": 1,
+      "oursLines": 3,
+      "theirsLines": 3150,
+      "bytes": 134053
+    },
+    {
+      "path": "backend/internal/service/anthropic_apikey_auth.go",
+      "hunks": 1,
+      "oursLines": 53,
+      "theirsLines": 30,
+      "bytes": 3747
+    },
+    {
+      "path": "backend/internal/service/antigravity_gateway_service.go",
+      "hunks": 1,
+      "oursLines": 0,
+      "theirsLines": 3220,
+      "bytes": 136325
+    },
+    {
+      "path": "backend/internal/service/billing_service_test.go",
+      "hunks": 1,
+      "oursLines": 2,
+      "theirsLines": 2,
+      "bytes": 73362
+    },
+    {
+      "path": "backend/internal/service/billing_service.go",
+      "hunks": 1,
+      "oursLines": 64,
+      "theirsLines": 13,
+      "bytes": 96582
+    },
+    {
+      "path": "backend/internal/service/domain_constants.go",
+      "hunks": 1,
+      "oursLines": 21,
+      "theirsLines": 16,
+      "bytes": 48794
+    },
+    {
+      "path": "backend/internal/service/email_service.go",
+      "hunks": 1,
+      "oursLines": 1,
+      "theirsLines": 1,
+      "bytes": 28875
+    },
+    {
+      "path": "backend/internal/service/gateway_service.go",
+      "hunks": 1,
+      "oursLines": 0,
+      "theirsLines": 5681,
+      "bytes": 263447
+    },
+    {
+      "path": "backend/internal/service/gateway_streaming_test.go",
+      "hunks": 1,
+      "oursLines": 138,
+      "theirsLines": 17,
+      "bytes": 22366
+    },
+    {
+      "path": "backend/internal/service/openai_account_runtime_block_fastpath.go",
+      "hunks": 1,
+      "oursLines": 7,
+      "theirsLines": 8,
+      "bytes": 24299
+    },
+    {
+      "path": "backend/internal/service/openai_account_scheduler_test.go",
+      "hunks": 1,
+      "oursLines": 5,
+      "theirsLines": 0,
+      "bytes": 141651
+    },
+    {
+      "path": "backend/internal/service/openai_codex_transform.go",
+      "hunks": 1,
+      "oursLines": 43,
+      "theirsLines": 42,
+      "bytes": 54734
+    },
+    {
+      "path": "backend/internal/service/openai_endpoint_url_test.go",
+      "hunks": 1,
+      "oursLines": 27,
+      "theirsLines": 16,
+      "bytes": 2488
+    },
+    {
+      "path": "backend/internal/service/openai_gateway_chat_completions_raw.go",
+      "hunks": 1,
+      "oursLines": 1,
+      "theirsLines": 1,
+      "bytes": 21879
+    },
+    {
+      "path": "backend/internal/service/openai_gateway_chat_completions_test.go",
+      "hunks": 1,
+      "oursLines": 1,
+      "theirsLines": 48,
+      "bytes": 50068
+    },
+    {
+      "path": "backend/internal/service/openai_gateway_record_usage_test.go",
+      "hunks": 1,
+      "oursLines": 1,
+      "theirsLines": 0,
+      "bytes": 120744
+    },
+    {
+      "path": "backend/internal/service/openai_gateway_responses_chat_fallback.go",
+      "hunks": 1,
+      "oursLines": 1,
+      "theirsLines": 28,
+      "bytes": 16397
+    },
+    {
+      "path": "backend/internal/service/openai_model_alias.go",
+      "hunks": 1,
+      "oursLines": 18,
+      "theirsLines": 2,
+      "bytes": 4727
+    },
+    {
+      "path": "backend/internal/service/openai_ws_forwarder.go",
+      "hunks": 1,
+      "oursLines": 0,
+      "theirsLines": 3172,
+      "bytes": 126232
+    },
+    {
+      "path": "backend/internal/service/openai_ws_protocol_forward_test.go",
+      "hunks": 1,
+      "oursLines": 1,
+      "theirsLines": 0,
+      "bytes": 67041
+    },
+    {
+      "path": "backend/internal/service/pricing_service.go",
+      "hunks": 1,
+      "oursLines": 23,
+      "theirsLines": 1,
+      "bytes": 61755
+    },
+    {
+      "path": "backend/internal/service/redeem_service.go",
+      "hunks": 1,
+      "oursLines": 5,
+      "theirsLines": 7,
+      "bytes": 32136
+    },
+    {
+      "path": "backend/internal/service/subscription_assign_idempotency_test.go",
+      "hunks": 1,
+      "oursLines": 4,
+      "theirsLines": 1,
+      "bytes": 24192
+    },
+    {
+      "path": "backend/internal/service/subscription_expiry_service_test.go",
+      "hunks": 1,
+      "oursLines": 1,
+      "theirsLines": 1,
+      "bytes": 7624
+    },
+    {
+      "path": "backend/internal/service/subscription_reset_quota_test.go",
+      "hunks": 1,
+      "oursLines": 34,
+      "theirsLines": 1,
+      "bytes": 9007
+    },
+    {
+      "path": "backend/internal/service/upstream_models_test.go",
+      "hunks": 1,
+      "oursLines": 12,
+      "theirsLines": 11,
+      "bytes": 47132
+    },
+    {
+      "path": "backend/internal/service/upstream_models.go",
+      "hunks": 1,
+      "oursLines": 1,
+      "theirsLines": 7,
+      "bytes": 54605
+    },
+    {
+      "path": "backend/internal/service/user_subscription_port.go",
+      "hunks": 1,
+      "oursLines": 10,
+      "theirsLines": 4,
+      "bytes": 3326
+    },
+    {
+      "path": "backend/internal/web/embed_test.go",
+      "hunks": 1,
+      "oursLines": 20,
+      "theirsLines": 66,
+      "bytes": 32303
+    },
+    {
+      "path": "backend/resources/model-pricing/model_prices_and_context_window.json",
+      "hunks": 1,
+      "oursLines": 0,
+      "theirsLines": 140,
+      "bytes": 207645
+    },
+    {
+      "path": "deploy/docker-compose.local.yml",
+      "hunks": 1,
+      "oursLines": 1,
+      "theirsLines": 1,
+      "bytes": 15385
+    },
+    {
+      "path": "frontend/index.html",
+      "hunks": 1,
+      "oursLines": 1,
+      "theirsLines": 2,
+      "bytes": 840
+    },
+    {
+      "path": "frontend/src/api/client.ts",
+      "hunks": 1,
+      "oursLines": 0,
+      "theirsLines": 10,
+      "bytes": 10035
+    },
+    {
+      "path": "frontend/src/components/charts/GroupDistributionChart.vue",
+      "hunks": 1,
+      "oursLines": 16,
+      "theirsLines": 12,
+      "bytes": 10526
+    },
+    {
+      "path": "frontend/src/components/layout/AuthLayout.vue",
+      "hunks": 1,
+      "oursLines": 35,
+      "theirsLines": 5,
+      "bytes": 5735
+    },
+    {
+      "path": "frontend/src/components/payment/__tests__/SubscriptionPlanCard.spec.ts",
+      "hunks": 1,
+      "oursLines": 79,
+      "theirsLines": 5,
+      "bytes": 6309
+    },
+    {
+      "path": "frontend/src/composables/usePersistedPageSize.ts",
+      "hunks": 1,
+      "oursLines": 2,
+      "theirsLines": 4,
+      "bytes": 1434
+    },
+    {
+      "path": "frontend/src/main.ts",
+      "hunks": 1,
+      "oursLines": 6,
+      "theirsLines": 0,
+      "bytes": 2365
+    },
+    {
+      "path": "frontend/src/stores/app.ts",
+      "hunks": 1,
+      "oursLines": 8,
+      "theirsLines": 3,
+      "bytes": 14371
+    },
+    {
+      "path": "frontend/src/views/admin/ops/components/OpsSettingsDialog.vue",
+      "hunks": 1,
+      "oursLines": 4,
+      "theirsLines": 2,
+      "bytes": 30111
+    },
+    {
+      "path": "frontend/src/views/admin/SubscriptionsView.vue",
+      "hunks": 1,
+      "oursLines": 7,
+      "theirsLines": 1,
+      "bytes": 57584
+    },
+    {
+      "path": "frontend/src/views/admin/UsageView.vue",
+      "hunks": 1,
+      "oursLines": 5,
+      "theirsLines": 1,
+      "bytes": 40203
+    },
+    {
+      "path": "frontend/src/views/admin/UsersView.vue",
+      "hunks": 1,
+      "oursLines": 2,
+      "theirsLines": 1,
+      "bytes": 79578
+    },
+    {
+      "path": "frontend/src/views/user/__tests__/UsageView.spec.ts",
+      "hunks": 1,
+      "oursLines": 11,
+      "theirsLines": 26,
+      "bytes": 21304
+    },
+    {
+      "path": "frontend/src/views/user/SubscriptionsView.vue",
+      "hunks": 1,
+      "oursLines": 6,
+      "theirsLines": 1,
+      "bytes": 16235
+    },
+    {
+      "path": "README_CN.md",
+      "hunks": 1,
+      "oursLines": 0,
+      "theirsLines": 4,
+      "bytes": 42752
+    },
+    {
+      "path": ".gitignore",
+      "hunks": 2,
+      "oursLines": 16,
+      "theirsLines": 50,
+      "bytes": 3833
+    },
+    {
+      "path": "backend/internal/handler/openai_chat_completions.go",
+      "hunks": 2,
+      "oursLines": 7,
+      "theirsLines": 3,
+      "bytes": 17567
+    },
+    {
+      "path": "backend/internal/handler/openai_images.go",
+      "hunks": 2,
+      "oursLines": 5,
+      "theirsLines": 2,
+      "bytes": 17409
+    },
+    {
+      "path": "backend/internal/handler/user_handler.go",
+      "hunks": 2,
+      "oursLines": 42,
+      "theirsLines": 23,
+      "bytes": 32009
+    },
+    {
+      "path": "backend/internal/repository/usage_log_repo.go",
+      "hunks": 2,
+      "oursLines": 0,
+      "theirsLines": 4291,
+      "bytes": 144363
+    },
+    {
+      "path": "backend/internal/repository/user_subscription_repo_integration_test.go",
+      "hunks": 2,
+      "oursLines": 2,
+      "theirsLines": 2,
+      "bytes": 35068
+    },
+    {
+      "path": "backend/internal/repository/user_subscription_repo.go",
+      "hunks": 2,
+      "oursLines": 19,
+      "theirsLines": 27,
+      "bytes": 25934
+    },
+    {
+      "path": "backend/internal/service/account_test_service.go",
+      "hunks": 2,
+      "oursLines": 11,
+      "theirsLines": 66,
+      "bytes": 127321
+    },
+    {
+      "path": "backend/internal/service/gateway_anthropic_apikey_passthrough_test.go",
+      "hunks": 2,
+      "oursLines": 20,
+      "theirsLines": 39,
+      "bytes": 68999
+    },
+    {
+      "path": "backend/internal/service/openai_endpoint_url.go",
+      "hunks": 2,
+      "oursLines": 8,
+      "theirsLines": 13,
+      "bytes": 3127
+    },
+    {
+      "path": "backend/internal/service/user_subscription_daily_quota_test.go",
+      "hunks": 2,
+      "oursLines": 31,
+      "theirsLines": 2,
+      "bytes": 9896
+    },
+    {
+      "path": "backend/internal/service/user_subscription.go",
+      "hunks": 2,
+      "oursLines": 8,
+      "theirsLines": 5,
+      "bytes": 11095
+    },
+    {
+      "path": "deploy/.env.example",
+      "hunks": 2,
+      "oursLines": 23,
+      "theirsLines": 17,
+      "bytes": 24373
+    },
+    {
+      "path": "deploy/config.example.yaml",
+      "hunks": 2,
+      "oursLines": 22,
+      "theirsLines": 10,
+      "bytes": 62012
+    },
+    {
+      "path": "deploy/Dockerfile",
+      "hunks": 2,
+      "oursLines": 5,
+      "theirsLines": 4,
+      "bytes": 5451
+    },
+    {
+      "path": "frontend/src/api/admin/accounts.ts",
+      "hunks": 2,
+      "oursLines": 17,
+      "theirsLines": 6,
+      "bytes": 34495
+    },
+    {
+      "path": "frontend/src/api/admin/settings.ts",
+      "hunks": 2,
+      "oursLines": 5,
+      "theirsLines": 2,
+      "bytes": 53637
+    },
+    {
+      "path": "frontend/src/api/user.ts",
+      "hunks": 2,
+      "oursLines": 6,
+      "theirsLines": 11,
+      "bytes": 7148
+    },
+    {
+      "path": "frontend/src/App.vue",
+      "hunks": 2,
+      "oursLines": 13,
+      "theirsLines": 9,
+      "bytes": 6149
+    },
+    {
+      "path": "frontend/src/components/account/__tests__/CreateAccountModal.spec.ts",
+      "hunks": 2,
+      "oursLines": 706,
+      "theirsLines": 134,
+      "bytes": 32953
+    },
+    {
+      "path": "frontend/src/components/account/AccountUsageCell.vue",
+      "hunks": 2,
+      "oursLines": 10,
+      "theirsLines": 7,
+      "bytes": 63895
+    },
+    {
+      "path": "frontend/src/components/account/EditAccountModal.vue",
+      "hunks": 2,
+      "oursLines": 29,
+      "theirsLines": 8,
+      "bytes": 254310
+    },
+    {
+      "path": "frontend/src/components/channels/AvailableChannelsTable.vue",
+      "hunks": 2,
+      "oursLines": 38,
+      "theirsLines": 10,
+      "bytes": 17142
+    },
+    {
+      "path": "frontend/src/components/charts/ModelDistributionChart.vue",
+      "hunks": 2,
+      "oursLines": 14,
+      "theirsLines": 10,
+      "bytes": 20612
+    },
+    {
+      "path": "frontend/src/components/common/GroupOptionItem.vue",
+      "hunks": 2,
+      "oursLines": 21,
+      "theirsLines": 11,
+      "bytes": 5421
+    },
+    {
+      "path": "frontend/src/components/payment/SubscriptionPlanCard.vue",
+      "hunks": 2,
+      "oursLines": 22,
+      "theirsLines": 0,
+      "bytes": 8770
+    },
+    {
+      "path": "frontend/src/components/user/dashboard/UserDashboardQuickActions.vue",
+      "hunks": 2,
+      "oursLines": 55,
+      "theirsLines": 85,
+      "bytes": 7348
+    },
+    {
+      "path": "frontend/src/utils/ccswitchImport.ts",
+      "hunks": 2,
+      "oursLines": 5,
+      "theirsLines": 33,
+      "bytes": 4116
+    },
+    {
+      "path": "frontend/src/views/admin/ops/components/OpsErrorLogTable.vue",
+      "hunks": 2,
+      "oursLines": 11,
+      "theirsLines": 217,
+      "bytes": 27101
+    },
+    {
+      "path": "frontend/src/views/admin/ops/OpsDashboard.vue",
+      "hunks": 2,
+      "oursLines": 13,
+      "theirsLines": 1,
+      "bytes": 29391
+    },
+    {
+      "path": "frontend/src/views/user/AffiliateView.vue",
+      "hunks": 2,
+      "oursLines": 11,
+      "theirsLines": 10,
+      "bytes": 19003
+    },
+    {
+      "path": "frontend/src/views/user/ChannelStatusView.vue",
+      "hunks": 2,
+      "oursLines": 8,
+      "theirsLines": 791,
+      "bytes": 45792
+    },
+    {
+      "path": "frontend/src/views/user/DashboardView.vue",
+      "hunks": 2,
+      "oursLines": 28,
+      "theirsLines": 59,
+      "bytes": 17020
+    },
+    {
+      "path": "backend/internal/config/config.go",
+      "hunks": 3,
+      "oursLines": 73,
+      "theirsLines": 24,
+      "bytes": 196342
+    },
+    {
+      "path": "backend/internal/handler/dto/mappers.go",
+      "hunks": 3,
+      "oursLines": 21,
+      "theirsLines": 25,
+      "bytes": 33954
+    },
+    {
+      "path": "backend/internal/service/channel_monitor_runner.go",
+      "hunks": 3,
+      "oursLines": 12,
+      "theirsLines": 10,
+      "bytes": 12023
+    },
+    {
+      "path": "backend/internal/service/openai_gateway_chat_completions.go",
+      "hunks": 3,
+      "oursLines": 4,
+      "theirsLines": 4,
+      "bytes": 46736
+    },
+    {
+      "path": "backend/internal/service/openai_gateway_messages.go",
+      "hunks": 3,
+      "oursLines": 72,
+      "theirsLines": 6,
+      "bytes": 52491
+    },
+    {
+      "path": "backend/internal/service/payment_fulfillment.go",
+      "hunks": 3,
+      "oursLines": 104,
+      "theirsLines": 19,
+      "bytes": 31840
+    },
+    {
+      "path": "backend/internal/service/setting_service.go",
+      "hunks": 3,
+      "oursLines": 0,
+      "theirsLines": 3890,
+      "bytes": 190445
+    },
+    {
+      "path": "backend/internal/web/embed_on.go",
+      "hunks": 3,
+      "oursLines": 57,
+      "theirsLines": 49,
+      "bytes": 15426
+    },
+    {
+      "path": "deploy/docker-compose.yml",
+      "hunks": 3,
+      "oursLines": 18,
+      "theirsLines": 11,
+      "bytes": 16809
+    },
+    {
+      "path": "frontend/src/components/user/dashboard/UserDashboardStats.vue",
+      "hunks": 3,
+      "oursLines": 263,
+      "theirsLines": 38,
+      "bytes": 26124
+    },
+    {
+      "path": "frontend/src/router/index.ts",
+      "hunks": 3,
+      "oursLines": 26,
+      "theirsLines": 36,
+      "bytes": 31947
+    },
+    {
+      "path": "frontend/src/views/admin/SettingsView.vue",
+      "hunks": 3,
+      "oursLines": 38,
+      "theirsLines": 55,
+      "bytes": 551851
+    },
+    {
+      "path": "frontend/src/views/auth/__tests__/EmailVerifyView.spec.ts",
+      "hunks": 3,
+      "oursLines": 21,
+      "theirsLines": 19,
+      "bytes": 28500
+    },
+    {
+      "path": "frontend/src/views/KeyUsageView.vue",
+      "hunks": 3,
+      "oursLines": 7,
+      "theirsLines": 5,
+      "bytes": 45470
+    },
+    {
+      "path": "frontend/src/views/user/PaymentView.vue",
+      "hunks": 3,
+      "oursLines": 17,
+      "theirsLines": 0,
+      "bytes": 52044
+    },
+    {
+      "path": "backend/cmd/server/wire_gen.go",
+      "hunks": 4,
+      "oursLines": 22,
+      "theirsLines": 58,
+      "bytes": 51983
+    },
+    {
+      "path": "backend/internal/handler/auth_handler.go",
+      "hunks": 4,
+      "oursLines": 20,
+      "theirsLines": 13,
+      "bytes": 27081
+    },
+    {
+      "path": "backend/internal/service/subscription_service.go",
+      "hunks": 4,
+      "oursLines": 36,
+      "theirsLines": 32,
+      "bytes": 44388
+    },
+    {
+      "path": "frontend/src/components/account/OAuthAuthorizationFlow.vue",
+      "hunks": 4,
+      "oursLines": 129,
+      "theirsLines": 41,
+      "bytes": 58519
+    },
+    {
+      "path": "frontend/src/components/common/AnnouncementPopup.vue",
+      "hunks": 4,
+      "oursLines": 46,
+      "theirsLines": 54,
+      "bytes": 14923
+    },
+    {
+      "path": "frontend/src/components/keys/UseKeyModal.vue",
+      "hunks": 4,
+      "oursLines": 75,
+      "theirsLines": 22,
+      "bytes": 67119
+    },
+    {
+      "path": "frontend/src/views/admin/__tests__/AccountsView.bulkEdit.spec.ts",
+      "hunks": 4,
+      "oursLines": 4,
+      "theirsLines": 4,
+      "bytes": 21421
+    },
+    {
+      "path": "frontend/src/views/admin/GroupsView.vue",
+      "hunks": 4,
+      "oursLines": 111,
+      "theirsLines": 19,
+      "bytes": 290682
+    },
+    {
+      "path": "frontend/src/views/public/LegalDocumentView.vue",
+      "hunks": 4,
+      "oursLines": 24,
+      "theirsLines": 12,
+      "bytes": 10191
+    },
+    {
+      "path": "backend/internal/handler/user_handler_test.go",
+      "hunks": 5,
+      "oursLines": 18,
+      "theirsLines": 7,
+      "bytes": 29415
+    },
+    {
+      "path": "backend/internal/service/auth_service.go",
+      "hunks": 5,
+      "oursLines": 53,
+      "theirsLines": 48,
+      "bytes": 76310
+    },
+    {
+      "path": "frontend/src/components/keys/__tests__/UseKeyModal.spec.ts",
+      "hunks": 5,
+      "oursLines": 495,
+      "theirsLines": 50,
+      "bytes": 38115
+    },
+    {
+      "path": "frontend/src/views/admin/DashboardView.vue",
+      "hunks": 5,
+      "oursLines": 383,
+      "theirsLines": 14,
+      "bytes": 30855
+    },
+    {
+      "path": "frontend/src/views/user/UsageView.vue",
+      "hunks": 5,
+      "oursLines": 38,
+      "theirsLines": 404,
+      "bytes": 63342
+    },
+    {
+      "path": "frontend/src/views/admin/AccountsView.vue",
+      "hunks": 6,
+      "oursLines": 56,
+      "theirsLines": 75,
+      "bytes": 137437
+    },
+    {
+      "path": "frontend/src/views/HomeView.vue",
+      "hunks": 6,
+      "oursLines": 112,
+      "theirsLines": 19,
+      "bytes": 26369
+    },
+    {
+      "path": "backend/internal/service/openai_gateway_service.go",
+      "hunks": 7,
+      "oursLines": 156,
+      "theirsLines": 5975,
+      "bytes": 249170
+    },
+    {
+      "path": "frontend/src/components/layout/AppHeader.vue",
+      "hunks": 7,
+      "oursLines": 18,
+      "theirsLines": 11,
+      "bytes": 20702
+    },
+    {
+      "path": "frontend/src/views/auth/EmailVerifyView.vue",
+      "hunks": 7,
+      "oursLines": 82,
+      "theirsLines": 13,
+      "bytes": 31886
+    },
+    {
+      "path": "frontend/src/views/auth/LoginView.vue",
+      "hunks": 7,
+      "oursLines": 120,
+      "theirsLines": 5,
+      "bytes": 25323
+    },
+    {
+      "path": "backend/internal/handler/openai_gateway_handler.go",
+      "hunks": 8,
+      "oursLines": 221,
+      "theirsLines": 39,
+      "bytes": 170844
+    },
+    {
+      "path": "frontend/src/views/user/KeysView.vue",
+      "hunks": 9,
+      "oursLines": 134,
+      "theirsLines": 64,
+      "bytes": 91070
+    },
+    {
+      "path": "frontend/src/views/auth/RegisterView.vue",
+      "hunks": 10,
+      "oursLines": 121,
+      "theirsLines": 6,
+      "bytes": 35070
+    },
+    {
+      "path": "frontend/src/components/account/CreateAccountModal.vue",
+      "hunks": 11,
+      "oursLines": 36,
+      "theirsLines": 82,
+      "bytes": 310338
+    },
+    {
+      "path": "frontend/src/components/layout/AppSidebar.vue",
+      "hunks": 11,
+      "oursLines": 71,
+      "theirsLines": 46,
+      "bytes": 41181
+    },
+    {
+      "path": "backend/internal/service/openai_account_scheduler.go",
+      "hunks": 12,
+      "oursLines": 251,
+      "theirsLines": 151,
+      "bytes": 116150
+    }
+  ]
+}
