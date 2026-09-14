@@ -199,6 +199,7 @@ func (h *OpsHandler) ListRequestErrors(c *gin.Context) {
 	}
 
 	filter := &service.OpsErrorLogFilter{Page: page, PageSize: pageSize}
+	filter.ExcludeUpstream = true
 	if !startTime.IsZero() {
 		filter.StartTime = &startTime
 	}

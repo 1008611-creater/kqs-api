@@ -63,3 +63,10 @@ func TestBuildOpsErrorLogsWhere_StatusFilterUsesFinalResponseStatus(t *testing.T
 		t.Fatalf("status filter must not substitute intermediate upstream status: %s", where)
 	}
 }
+
+func TestBuildOpsErrorLogsWhere_RequestListExcludesUpstream(t *testing.T) {
+	where, _ := buildOpsErrorLogsWhere(&service.OpsErrorLogFilter{ExcludeUpstream: true})
+	if !strings.Contains(where, "LOWER(e.error_phase)") || !strings.Contains(where, "<> 'upstream'") {
+		t.Fatalf("request list must exclude upstream events: %s", where)
+	}
+}

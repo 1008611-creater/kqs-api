@@ -844,6 +844,9 @@ func buildOpsErrorLogsWhere(filter *service.OpsErrorLogFilter) (string, []any) {
 	if phaseFilter != "upstream" {
 		clauses = append(clauses, "COALESCE(e.status_code, 0) >= 400")
 	}
+	if filter != nil && filter.ExcludeUpstream {
+		clauses = append(clauses, "COALESCE(LOWER(e.error_phase), '') <> 'upstream'")
+	}
 
 	if filter.StartTime != nil && !filter.StartTime.IsZero() {
 		args = append(args, filter.StartTime.UTC())

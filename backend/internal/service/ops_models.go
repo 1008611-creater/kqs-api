@@ -104,6 +104,8 @@ type OpsErrorLogFilter struct {
 	StatusCodes      []int
 	StatusCodesOther bool
 	Phase            string
+	// ExcludeUpstream keeps request-error lists free of provider-side events.
+	ExcludeUpstream  bool
 	Owner            string
 	Source           string
 	Resolved         *bool
