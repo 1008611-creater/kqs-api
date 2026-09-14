@@ -38,7 +38,7 @@ var (
 	)
 	ErrKqsMottoGiftEmailRequired = infraerrors.Forbidden(
 		"KQS_MOTTO_GIFT_EMAIL_REQUIRED",
-		"专属福利仅限 @kqs.edu.cn 矿泉水邮箱账号领取。请使用矿泉水邮箱注册后再领取。",
+		"专属福利仅限 @cau.edu.cn 矿泉水邮箱账号领取。请使用矿泉水邮箱注册后再领取。",
 	)
 )
 
@@ -49,7 +49,6 @@ const (
 
 	kqsMottoGiftCode        = "JMSZDJYTXZYC"
 	kqsMottoGiftAmount      = 30.0
-	kqsMottoGiftEmailSuffix = "@kqs.edu.cn"
 )
 
 type ctxKeySkipRedeemAffiliate struct{}
@@ -675,8 +674,9 @@ func isKqsMottoGiftCode(code string) bool {
 	return normalizeKqsMottoGiftCode(code) == kqsMottoGiftCode
 }
 
+// isKqsMottoGiftEligibleEmail 复用注册侧的邮箱后缀判定，避免两处口径不一致。
 func isKqsMottoGiftEligibleEmail(email string) bool {
-	return strings.HasSuffix(strings.ToLower(strings.TrimSpace(email)), kqsMottoGiftEmailSuffix)
+	return isKqsRegistrationEmail(email)
 }
 
 func normalizeKqsMottoGiftCode(code string) string {

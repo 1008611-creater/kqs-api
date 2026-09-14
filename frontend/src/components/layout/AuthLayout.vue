@@ -58,7 +58,7 @@ onMounted(() => {
 .auth-shell::before,
 .auth-shell::after {
   content: '';
-  position: absolute;
+  position: fixed;
   inset: 0;
   pointer-events: none;
 }
@@ -66,7 +66,7 @@ onMounted(() => {
 .auth-shell::before {
   background:
     linear-gradient(180deg, rgba(2, 16, 12, 0.36) 0%, rgba(3, 24, 18, 0.4) 46%, rgba(2, 15, 12, 0.52) 100%),
-    url('/kqs-mountain-water-gilded-v2.webp?v=20260730-image2') center top / 100% auto no-repeat;
+    url('/kqs-mountain-water-gilded-v2.webp?v=20260730-image2') center / cover no-repeat;
   opacity: 1;
   filter: saturate(0.82) contrast(1.05) brightness(0.86);
 }

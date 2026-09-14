@@ -1337,7 +1337,7 @@ export default {
       insufficientBalance: 'Insufficient balance. Buy and redeem a card code before creating or using a key.',
       kqsMottoGiftUserUsed: 'You have already claimed the KQS gift. Next, create a Codex key or buy a card code to add more balance.',
       kqsMottoGiftIpUsed: 'This network/IP has already claimed the KQS gift. This launch gift is limited to one claim per IP, even with a different account.',
-      kqsMottoGiftEmailRequired: 'The KQS gift is only available to @kqs.edu.cn accounts. Register with a KQS email before claiming it.',
+      kqsMottoGiftEmailRequired: 'The KQS gift is only available to @cau.edu.cn accounts. Register with a CAU email before claiming it.',
       kqsMottoGiftUnavailable: 'The current network could not be identified, so the KQS gift cannot be claimed. Refresh and try again, or contact the admin.'
     }
   },

@@ -12,7 +12,7 @@ import (
 
 func TestShouldUseKqsDirectVerifyDelivery(t *testing.T) {
 	t.Run("uses fallback for KQS address when SMTP is missing", func(t *testing.T) {
-		require.True(t, shouldUseKqsDirectVerifyDelivery("2023308250104@kqs.edu.cn", ErrEmailNotConfigured))
+		require.True(t, shouldUseKqsDirectVerifyDelivery("2023308250104@cau.edu.cn", ErrEmailNotConfigured))
 	})
 
 	t.Run("does not use fallback for non-KQS address", func(t *testing.T) {
@@ -20,7 +20,7 @@ func TestShouldUseKqsDirectVerifyDelivery(t *testing.T) {
 	})
 
 	t.Run("does not use fallback for unrelated SMTP failure", func(t *testing.T) {
-		require.False(t, shouldUseKqsDirectVerifyDelivery("student@kqs.edu.cn", errors.New("smtp auth failed")))
+		require.False(t, shouldUseKqsDirectVerifyDelivery("student@cau.edu.cn", errors.New("smtp auth failed")))
 	})
 }
 
@@ -30,7 +30,7 @@ func TestShouldContinueVerifyCodeLegacyDelivery(t *testing.T) {
 	})
 
 	t.Run("continues for KQS direct fallback when notification delivery reports missing SMTP", func(t *testing.T) {
-		require.True(t, shouldContinueVerifyCodeLegacyDelivery("2023308250104@kqs.edu.cn", notificationEmailDeliveryErr(ErrEmailNotConfigured)))
+		require.True(t, shouldContinueVerifyCodeLegacyDelivery("2023308250104@cau.edu.cn", notificationEmailDeliveryErr(ErrEmailNotConfigured)))
 	})
 
 	t.Run("does not continue for non KQS notification delivery failure", func(t *testing.T) {
@@ -50,7 +50,7 @@ func TestDirectMXMessageHelpers(t *testing.T) {
 	msg := directMXEmail{
 		FromAddress: kqsDirectMailSender,
 		FromName:    "矿泉水API",
-		ToAddress:   "2023308250104@kqs.edu.cn",
+		ToAddress:   "2023308250104@cau.edu.cn",
 		Subject:     "[矿泉水API] 验证码",
 		HTMLBody:    "<p>123456</p>",
 		HELOName:    kqsDirectMailHELO,
@@ -62,5 +62,5 @@ func TestDirectMXMessageHelpers(t *testing.T) {
 	require.Contains(t, raw, "Message-ID: <")
 	require.Contains(t, raw, "Subject: =?UTF-8?")
 	require.Contains(t, raw, "From: =?UTF-8?")
-	require.Equal(t, "kqs.edu.cn", emailDomain(msg.ToAddress))
+	require.Equal(t, "cau.edu.cn", emailDomain(msg.ToAddress))
 }

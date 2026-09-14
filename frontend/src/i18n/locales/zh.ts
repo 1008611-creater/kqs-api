@@ -1340,7 +1340,7 @@ export default {
       insufficientBalance: '余额不足。请先购买卡密并兑换余额，再继续创建或使用 Key。',
       kqsMottoGiftUserUsed: '你已经领取过专属福利。下一步可以去创建 Codex Key，或购买卡密继续充值。',
       kqsMottoGiftIpUsed: '当前网络/IP 已经领取过专属福利。这个活动每个 IP 只能领取一次，换账号也不能重复领取。',
-      kqsMottoGiftEmailRequired: '专属福利仅限 @kqs.edu.cn 矿泉水邮箱账号领取。请使用矿泉水邮箱注册后再领取。',
+      kqsMottoGiftEmailRequired: '专属福利仅限 @cau.edu.cn 矿泉水邮箱账号领取。请使用矿泉水邮箱注册后再领取。',
       kqsMottoGiftUnavailable: '暂时无法识别当前网络，无法领取专属福利。请刷新页面后重试，或联系管理员处理。'
     }
   },

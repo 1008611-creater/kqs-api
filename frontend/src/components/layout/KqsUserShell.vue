@@ -115,7 +115,7 @@ async function handleLogout() {
 .kqs-shell::before {
   background:
     linear-gradient(180deg, rgba(2, 16, 12, 0.26) 0%, rgba(3, 24, 18, 0.3) 44%, rgba(2, 15, 12, 0.44) 100%),
-    url('/kqs-mountain-water-gilded-v2.webp?v=20260730-image2') center top / 100% auto no-repeat;
+    url('/kqs-mountain-water-gilded-v2.webp?v=20260730-image2') center / cover no-repeat;
   opacity: 1;
   mix-blend-mode: normal;
   filter: saturate(0.82) contrast(1.05) brightness(0.88);

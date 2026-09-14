@@ -107,12 +107,12 @@ func TestKqsMottoGiftIPHash(t *testing.T) {
 }
 
 func TestKqsMottoGiftEligibleEmail(t *testing.T) {
-	require.True(t, isKqsMottoGiftEligibleEmail("student@kqs.edu.cn"))
-	require.True(t, isKqsMottoGiftEligibleEmail(" STUDENT@KQS.EDU.CN "))
+	require.True(t, isKqsMottoGiftEligibleEmail("student@cau.edu.cn"))
+	require.True(t, isKqsMottoGiftEligibleEmail(" STUDENT@CAU.EDU.CN "))
 
 	require.False(t, isKqsMottoGiftEligibleEmail("student@gmail.com"))
-	require.False(t, isKqsMottoGiftEligibleEmail("student@foo.kqs.edu.cn"))
-	require.False(t, isKqsMottoGiftEligibleEmail("studentkqs.edu.cn"))
+	require.False(t, isKqsMottoGiftEligibleEmail("student@foo.cau.edu.cn"))
+	require.False(t, isKqsMottoGiftEligibleEmail("studentcau.edu.cn"))
 	require.False(t, isKqsMottoGiftEligibleEmail(""))
 }
 

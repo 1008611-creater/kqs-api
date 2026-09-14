@@ -306,7 +306,7 @@ onMounted(() => {
 .home-shell::before,
 .home-shell::after {
   content: '';
-  position: absolute;
+  position: fixed;
   inset: 0;
   pointer-events: none;
 }
@@ -315,7 +315,7 @@ onMounted(() => {
   z-index: 1;
   background:
     linear-gradient(180deg, rgba(2, 16, 12, 0.3) 0%, rgba(3, 24, 18, 0.32) 44%, rgba(2, 15, 12, 0.46) 100%),
-    url('/kqs-mountain-water-gilded-v2.webp?v=20260730-image2') center top / 100% auto no-repeat;
+    url('/kqs-mountain-water-gilded-v2.webp?v=20260730-image2') center / cover no-repeat;
   opacity: 1;
   mix-blend-mode: normal;
   filter: saturate(0.82) contrast(1.05) brightness(0.88);

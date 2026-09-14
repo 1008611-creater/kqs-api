@@ -268,7 +268,7 @@ func TestAuthService_Register_CauEmailVerifyRequiredWhenGlobalEmailVerifyDisable
 		SettingKeyEmailVerifyEnabled:  "false",
 	}, cache)
 
-	_, _, err := service.RegisterWithVerification(context.Background(), "student@kqs.edu.cn", "password", "", "", "", "")
+	_, _, err := service.RegisterWithVerification(context.Background(), "student@cau.edu.cn", "password", "", "", "", "")
 	require.ErrorIs(t, err, ErrEmailVerifyRequired)
 	require.Empty(t, repo.created)
 }
@@ -283,7 +283,7 @@ func TestAuthService_Register_CauEmailVerifyInvalidWhenGlobalEmailVerifyDisabled
 		SettingKeyEmailVerifyEnabled:  "false",
 	}, cache)
 
-	_, _, err := service.RegisterWithVerification(context.Background(), "student@kqs.edu.cn", "password", "654321", "", "", "")
+	_, _, err := service.RegisterWithVerification(context.Background(), "student@cau.edu.cn", "password", "654321", "", "", "")
 	require.ErrorIs(t, err, ErrInvalidVerifyCode)
 	require.Empty(t, repo.created)
 }

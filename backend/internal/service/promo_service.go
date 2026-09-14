@@ -94,6 +94,21 @@ func (s *PromoService) ApplyPromoCode(ctx context.Context, userID int64, code st
 		return nil
 	}
 
+	// 专属福利口令必须走兑换页并校验邮箱归属。注册接口不能把它当成普通优惠码直接发放，
+	// 否则任何邮箱都能通过注册参数白拿额度。
+	if isKqsMottoGiftCode(code) {
+		if s.userRepo == nil {
+			return ErrKqsMottoGiftEmailRequired
+		}
+		user, err := s.userRepo.GetByID(ctx, userID)
+		if err != nil {
+			return fmt.Errorf("get user for motto gift promo: %w", err)
+		}
+		if user == nil || !isKqsMottoGiftEligibleEmail(user.Email) {
+			return ErrKqsMottoGiftEmailRequired
+		}
+	}
+
 	// 开启事务
 	tx, err := s.entClient.Tx(ctx)
 	if err != nil {
