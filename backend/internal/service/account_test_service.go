@@ -1568,7 +1568,7 @@ func detectOpenAIUpstreamHTML(headers http.Header, body io.Reader, endpoint stri
 	_ = body
 	ct := strings.ToLower(strings.TrimSpace(headers.Get("Content-Type")))
 	if strings.Contains(ct, "text/html") {
-		return fmt.Errorf("Invalid %s response: upstream returned HTML instead of SSE", endpoint)
+		return fmt.Errorf("invalid %s response: upstream returned HTML instead of SSE", endpoint)
 	}
 	return nil
 }
@@ -1577,7 +1577,7 @@ func detectOpenAIUpstreamHTML(headers http.Header, body io.Reader, endpoint stri
 func (s *AccountTestService) testOpenAIImageAPIKey(c *gin.Context, ctx context.Context, account *Account, modelID, prompt string) error {
 	authToken := account.GetOpenAIApiKey()
 	if authToken == "" {
-		return s.sendErrorAndEnd(c, "No API key available")
+		return s.sendErrorAndEnd(c, "no API key available")
 	}
 
 	baseURL := account.GetOpenAIBaseURL()

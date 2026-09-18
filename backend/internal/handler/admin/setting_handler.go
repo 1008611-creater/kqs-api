@@ -669,7 +669,7 @@ type UpdateSettingsRequest struct {
 	RiskControlEnabled *bool `json:"risk_control_enabled"`
 
 	// OpenAI fast/flex policy (optional, only updated when provided)
-	OpenAIFastPolicySettings *dto.OpenAIFastPolicySettings `json:"openai_fast_policy_settings,omitempty"`
+	OpenAIFastPolicySettings  *dto.OpenAIFastPolicySettings  `json:"openai_fast_policy_settings,omitempty"`
 	OpenAIVIPFastModeSettings *dto.OpenAIVIPFastModeSettings `json:"openai_vip_fast_mode_settings,omitempty"`
 }
 

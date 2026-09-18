@@ -254,9 +254,9 @@ func fetchProxySubscription(ctx context.Context, subURL, proxyURL string) (strin
 		return "", nil, fmt.Errorf("fetch subscription: %w", err)
 	}
 	if resp.GetStatusCode() < 200 || resp.GetStatusCode() >= 300 {
-		return "", resp.Response.Header, fmt.Errorf("subscription returned HTTP %d", resp.GetStatusCode())
+		return "", resp.Header, fmt.Errorf("subscription returned HTTP %d", resp.GetStatusCode())
 	}
-	return resp.String(), resp.Response.Header, nil
+	return resp.String(), resp.Header, nil
 }
 
 func proxyTrafficPoolSafeErrorMessage(err error, configuredInMihomo bool) string {
@@ -446,7 +446,7 @@ func readMihomoConfigForTrafficPool(items []*OpsProxyTrafficPoolConfigItem) stri
 		data, err := os.ReadFile(p)
 		if err == nil {
 			_, _ = b.Write(data)
-			_ = b.WriteByte('\n')
+			_, _ = b.WriteByte('\n')
 		}
 	}
 	return b.String()

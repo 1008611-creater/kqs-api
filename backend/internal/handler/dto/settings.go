@@ -245,7 +245,7 @@ type SystemSettings struct {
 	AffiliateEnabled bool `json:"affiliate_enabled"`
 
 	// OpenAI fast/flex policy
-	OpenAIFastPolicySettings *OpenAIFastPolicySettings `json:"openai_fast_policy_settings,omitempty"`
+	OpenAIFastPolicySettings  *OpenAIFastPolicySettings  `json:"openai_fast_policy_settings,omitempty"`
 	OpenAIVIPFastModeSettings *OpenAIVIPFastModeSettings `json:"openai_vip_fast_mode_settings,omitempty"`
 }
 
@@ -383,12 +383,12 @@ type OpenAIFastPolicySettings struct {
 
 // OpenAIVIPFastModeSettings OpenAI VIP priority tier injection settings DTO
 type OpenAIVIPFastModeSettings struct {
-	Enabled                  bool    `json:"enabled"`
-	UserIDs                  []int64 `json:"user_ids,omitempty"`
-	APIKeyIDs                []int64 `json:"api_key_ids,omitempty"`
-	GroupIDs                 []int64 `json:"group_ids,omitempty"`
+	Enabled                  bool     `json:"enabled"`
+	UserIDs                  []int64  `json:"user_ids,omitempty"`
+	APIKeyIDs                []int64  `json:"api_key_ids,omitempty"`
+	GroupIDs                 []int64  `json:"group_ids,omitempty"`
 	ModelWhitelist           []string `json:"model_whitelist,omitempty"`
-	RespectClientServiceTier bool    `json:"respect_client_service_tier"`
+	RespectClientServiceTier bool     `json:"respect_client_service_tier"`
 }
 
 // EmailTemplateEventOption 描述可编辑的通知邮件事件。

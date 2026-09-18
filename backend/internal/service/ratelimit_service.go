@@ -1551,13 +1551,6 @@ func (s *RateLimitService) ClearTempUnschedulable(ctx context.Context, accountID
 	return nil
 }
 
-func hasRecoverableRuntimeState(account *Account) bool {
-	if hasProtectedStreamDisconnectTempUnsched(account) {
-		return false
-	}
-	return hasRecoverableRuntimeStateExceptTempUnsched(account) || account.TempUnschedulableUntil != nil
-}
-
 func hasRecoverableRuntimeStateExceptTempUnsched(account *Account) bool {
 	if account == nil {
 		return false

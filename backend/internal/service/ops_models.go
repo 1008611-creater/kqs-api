@@ -105,12 +105,12 @@ type OpsErrorLogFilter struct {
 	StatusCodesOther bool
 	Phase            string
 	// ExcludeUpstream keeps request-error lists free of provider-side events.
-	ExcludeUpstream  bool
-	Owner            string
-	Source           string
-	Resolved         *bool
-	Query            string
-	UserQuery        string // Search by user email
+	ExcludeUpstream bool
+	Owner           string
+	Source          string
+	Resolved        *bool
+	Query           string
+	UserQuery       string // Search by user email
 
 	// Optional correlation keys for exact matching.
 	RequestID       string
