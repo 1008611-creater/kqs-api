@@ -49,7 +49,10 @@ jobs:
                   event = json.loads(line)
               except json.JSONDecodeError:
                   continue
-              if event.get("osv"):
+              # govulncheck emits an `osv` event for both actionable findings
+              # and informational vulnerabilities with no reachable call stack.
+              # Only events carrying `finding` affect the security gate.
+              if event.get("osv") and event.get("finding"):
                   findings.append(event)
 
           unique = {}
