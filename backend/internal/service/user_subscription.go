@@ -9,9 +9,9 @@ type UserSubscription struct {
 	UserID  int64
 	GroupID int64
 
-	StartsAt  time.Time
-	ExpiresAt time.Time
-	Status    string
+	StartsAt     time.Time
+	ExpiresAt    time.Time
+	Status       string
 	ValidityDays int
 
 	DailyWindowStart   *time.Time

@@ -26,4 +26,3 @@ func TestResolveSubscriptionRedeemRebateBaseAcceptsSingularDay(t *testing.T) {
 		t.Fatalf("resolveSubscriptionRedeemRebateBase() = %.2f, want 70.00", got)
 	}
 }
-
