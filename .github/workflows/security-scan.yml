@@ -50,13 +50,20 @@ jobs:
               except json.JSONDecodeError:
                   continue
               if event.get("osv"):
-                  findings.append(event["osv"])
+                  findings.append(event)
 
-          unique = sorted({str(item) for item in findings})
+          unique = {}
+          for event in findings:
+              unique.setdefault(str(event["osv"]), []).append(event)
           if unique:
               print("Confirmed govulncheck vulnerabilities:")
-              for item in unique:
-                  print(f"  {item}")
+              for osv, events in sorted(unique.items()):
+                  print(f"  {osv}")
+                  for event in events[:3]:
+                      if event.get("finding"):
+                          print(f"    finding: {json.dumps(event['finding'], sort_keys=True)}")
+                      if event.get("trace"):
+                          print(f"    trace: {json.dumps(event['trace'], sort_keys=True)}")
               raise SystemExit(1)
 
           print("govulncheck found no vulnerability records; informational call traces are not treated as findings.")
