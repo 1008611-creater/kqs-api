@@ -24,6 +24,16 @@ jobs:
       - name: Unit tests
         working-directory: backend
         run: make test-unit
+      - name: Publish unit test failure summary
+        if: failure()
+        working-directory: backend
+        run: |
+          {
+            echo '## Unit test failure evidence'
+            echo '```text'
+            tail -n 240 unit-test.log || true
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
       - name: Upload unit test log on failure
         if: failure()
         uses: actions/upload-artifact@v4
