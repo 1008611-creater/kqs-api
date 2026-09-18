@@ -445,8 +445,8 @@ func readMihomoConfigForTrafficPool(items []*OpsProxyTrafficPoolConfigItem) stri
 		seen[p] = struct{}{}
 		data, err := os.ReadFile(p)
 		if err == nil {
-			b.Write(data)
-			b.WriteByte('\n')
+			_, _ = b.Write(data)
+			_ = b.WriteByte('\n')
 		}
 	}
 	return b.String()

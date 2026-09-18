@@ -47,8 +47,8 @@ const (
 	redeemRateLimitDuration = time.Hour
 	redeemLockDuration      = 10 * time.Second // 锁超时时间，防止死锁
 
-	kqsMottoGiftCode        = "JMSZDJYTXZYC"
-	kqsMottoGiftAmount      = 30.0
+	kqsMottoGiftCode   = "JMSZDJYTXZYC"
+	kqsMottoGiftAmount = 30.0
 )
 
 type ctxKeySkipRedeemAffiliate struct{}
@@ -653,7 +653,7 @@ func (s *RedeemService) lookupKqsMottoGiftConflict(ctx context.Context, userID i
 	if err != nil {
 		return false, false, fmt.Errorf("lookup KQS gift claim: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	if !rows.Next() {
 		if err := rows.Err(); err != nil {
@@ -684,11 +684,11 @@ func normalizeKqsMottoGiftCode(code string) string {
 	for _, r := range strings.TrimSpace(code) {
 		switch {
 		case r >= 'a' && r <= 'z':
-			b.WriteRune(r - ('a' - 'A'))
+			_ = b.WriteRune(r - ('a' - 'A'))
 		case r >= 'A' && r <= 'Z':
-			b.WriteRune(r)
+			_ = b.WriteRune(r)
 		case r >= '0' && r <= '9':
-			b.WriteRune(r)
+			_ = b.WriteRune(r)
 		}
 	}
 	return b.String()

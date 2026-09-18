@@ -309,7 +309,7 @@ func (s *GroupBuyService) completeRoom(ctx context.Context, tx *sql.Tx, roomID i
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	invalidations := make([]groupBuyInvalidation, 0)
 	for rows.Next() {
@@ -392,7 +392,7 @@ func (s *GroupBuyService) scanRooms(ctx context.Context, query string, args ...a
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	rooms := make([]GroupBuyRoom, 0)
 	for rows.Next() {
 		var room GroupBuyRoom
