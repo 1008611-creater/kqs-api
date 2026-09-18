@@ -38,6 +38,7 @@ jobs:
           fi
           python3 - <<'PY'
           import json
+          import os
           from pathlib import Path
 
           findings = []
@@ -63,6 +64,13 @@ jobs:
           for osv, event in findings:
               unique.setdefault(osv, []).append(event)
           if unique:
+              summary_path = os.environ.get("GITHUB_STEP_SUMMARY")
+              summary = Path(summary_path) if summary_path else None
+              if summary:
+                  with summary.open("a", encoding="utf-8") as out:
+                      out.write("## Confirmed govulncheck vulnerabilities\n\n")
+                      for osv in sorted(unique):
+                          out.write(f"- `{osv}`\n")
               print("Confirmed govulncheck vulnerabilities:")
               for osv, events in sorted(unique.items()):
                   print(f"  {osv}")
