@@ -573,8 +573,8 @@ func wrapBase64(value string) string {
 	}
 	var b strings.Builder
 	for len(value) > 76 {
-		_ = b.WriteString(value[:76])
-		_ = b.WriteString("\r\n")
+		_, _ = b.WriteString(value[:76])
+		_, _ = b.WriteString("\r\n")
 		value = value[76:]
 	}
 	_, _ = b.WriteString(value)
