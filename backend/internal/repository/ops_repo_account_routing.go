@@ -81,7 +81,7 @@ ORDER BY COALESCE(ag.priority, a.priority), a.id`
 	if err != nil {
 		return nil, err
 	}
-	defer func() { _, _ = rows.Close() }()
+	defer func() { _ = rows.Close() }()
 
 	items := make([]*service.OpsAccountRoutingStats, 0)
 	for rows.Next() {
