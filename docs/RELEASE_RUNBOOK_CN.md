@@ -54,7 +54,7 @@ $backend = (Resolve-Path .\backend).Path
 docker run --rm -v "${backend}:/app/backend" -w /app/backend `
   -e GOPROXY=https://goproxy.cn,direct `
   -e GOSUMDB=sum.golang.google.cn `
-  golang:1.26.3-alpine sh -lc `
+  golang:1.26.6-alpine sh -lc `
   'export PATH=/usr/local/go/bin:$PATH; apk add --no-cache git ca-certificates tzdata >/dev/null; go test ./...'
 ```
 

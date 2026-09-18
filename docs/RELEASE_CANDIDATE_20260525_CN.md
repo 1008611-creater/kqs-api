@@ -8,7 +8,7 @@
 | --- | --- | --- |
 | 固定镜像运行 | 通过 | `sub2api-gg` 运行 `sub2api:kqs-api-prelaunch-20260525-2058`，健康状态 `healthy` |
 | 健康检查 | 通过 | `http://localhost:18080/health` 与 `https://api.cauai.fun/health` 返回 `{"status":"ok"}` |
-| 后端测试 | 通过 | 使用 `golang:1.26.3-alpine` 容器执行 `go test ./...` 通过 |
+| 后端测试 | 通过 | 使用 `golang:1.26.6-alpine` 容器执行 `go test ./...` 通过 |
 | 前端构建 | 通过 | Docker 镜像构建过程中 `pnpm run build` 成功 |
 | 迁移启动 | 通过 | `142_cau_prelaunch_defaults.sql` 已兼容历史 checksum，`143_reaffirm_cau_prelaunch_defaults.sql` 已成功应用 |
 | Cloudflare Worker | 通过 | `sub2api-proxy` 已部署，版本 `768ca6f6-93c9-4d6c-8e8a-1ab4cf9fadf6` |

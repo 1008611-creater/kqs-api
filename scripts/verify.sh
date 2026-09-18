@@ -391,7 +391,7 @@ l2_backend() {
     printf '      症状：连最小程序都无法编译（std 源文件缺失）\n'
     printf '      %s本次改动在后端侧【完全未验证】，必须依赖 CI。%s\n' "${C_YEL}" "${C_RST}"
     printf '      CI: .github/workflows/backend-ci.yml\n'
-    printf '      替代方案：docker run --rm -v "%s/backend:/app" -w /app golang:1.26.3-alpine go test ./...\n' "${REPO_ROOT}"
+    printf '      替代方案：docker run --rm -v "%s/backend:/app" -w /app golang:1.26.6-alpine go test ./...\n' "${REPO_ROOT}"
     record "后端编译" "SKIP" "Go 工具链损坏"
     record "后端单测" "SKIP" "Go 工具链损坏"
     record "golangci-lint" "SKIP" "Go 工具链损坏"

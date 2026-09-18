@@ -113,7 +113,7 @@
 **为什么**：一次"假装验证过"会导致 Go 代码零验证地进入仓库。
 
 **做法**：
-- 本地验证优先用容器：`docker run --rm -v "$PWD/backend:/app" -w /app golang:1.26.3-alpine go test ./...`
+- 本地验证优先用容器：`docker run --rm -v "$PWD/backend:/app" -w /app golang:1.26.6-alpine go test ./...`
 - 跑不了就明确写「未验证」，依赖 CI
 - `scripts/verify.sh` 会自动检测并标注
 
