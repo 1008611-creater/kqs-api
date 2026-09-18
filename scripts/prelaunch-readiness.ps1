@@ -203,8 +203,14 @@ try {
 
   $docker = Get-Command docker -ErrorAction SilentlyContinue
   if ($docker) {
-    $imageName = docker inspect sub2api-gg --format '{{.Config.Image}}' 2>$null
-    if ($LASTEXITCODE -eq 0 -and $imageName) {
+    # docker inspect 在 Windows PowerShell 中即使命令失败也可能把 stderr
+    # 转成 NativeCommandError；临时静默错误流，随后用退出码决定 WARN/继续。
+    $previousErrorActionPreference = $ErrorActionPreference
+    $ErrorActionPreference = "SilentlyContinue"
+    $imageName = @(docker inspect sub2api-gg --format "{{.Config.Image}}" 2>$null)
+    $inspectExitCode = $LASTEXITCODE
+    $ErrorActionPreference = $previousErrorActionPreference
+    if ($inspectExitCode -eq 0 -and $imageName) {
       if ($imageName -match ':latest$') {
         Add-Check "FAIL" "running image" "sub2api-gg is running $imageName. Release should use a fixed tag."
       } else {
@@ -364,3 +370,4 @@ if ($failures.Count -gt 0) {
 
 Write-Host ""
 Write-Host "Prelaunch readiness passed with no blocking failures." -ForegroundColor Green
+exit 0

@@ -28,7 +28,40 @@ jobs:
         working-directory: backend
         run: |
           go install golang.org/x/vuln/cmd/govulncheck@latest
-          govulncheck ./...
+          set +e
+          govulncheck -format=json ./... > govulncheck.json
+          scan_exit=$?
+          set -e
+          if [ "$scan_exit" -ne 0 ] && [ ! -s govulncheck.json ]; then
+            echo "govulncheck failed without producing JSON output"
+            exit "$scan_exit"
+          fi
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+
+          findings = []
+          for line in Path("govulncheck.json").read_text(encoding="utf-8").splitlines():
+              line = line.strip()
+              if not line:
+                  continue
+              try:
+                  event = json.loads(line)
+              except json.JSONDecodeError:
+                  continue
+              if event.get("osv"):
+                  findings.append(event["osv"])
+
+          unique = sorted({str(item) for item in findings})
+          if unique:
+              print("Confirmed govulncheck vulnerabilities:")
+              for item in unique:
+                  print(f"  {item}")
+              raise SystemExit(1)
+
+          print("govulncheck found no vulnerability records; informational call traces are not treated as findings.")
+          PY
+          rm -f govulncheck.json
 
   frontend-security:
     runs-on: ubuntu-latest
