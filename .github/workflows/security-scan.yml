@@ -52,12 +52,16 @@ jobs:
               # govulncheck emits an `osv` event for both actionable findings
               # and informational vulnerabilities with no reachable call stack.
               # Only events carrying `finding` affect the security gate.
-              if event.get("osv") and event.get("finding"):
-                  findings.append(event)
+              finding = event.get("finding")
+              osv = event.get("osv")
+              if isinstance(finding, dict) and isinstance(finding.get("osv"), str):
+                  findings.append((finding["osv"], event))
+              elif osv and finding:
+                  findings.append((str(osv), event))
 
           unique = {}
-          for event in findings:
-              unique.setdefault(str(event["osv"]), []).append(event)
+          for osv, event in findings:
+              unique.setdefault(osv, []).append(event)
           if unique:
               print("Confirmed govulncheck vulnerabilities:")
               for osv, events in sorted(unique.items()):

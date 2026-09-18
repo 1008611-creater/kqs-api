@@ -15,7 +15,7 @@ test:
 	golangci-lint run ./...
 
 test-unit:
-	bash -o pipefail -c 'go test -json -tags=unit ./... -count=1 2>&1 | tee unit-test.json; rc=$${PIPESTATUS[0]}; echo "--- unit test failure summary ---"; python3 -c "import json,sys; [print(f\"{e.get(\\\"Package\\\",\\\"\\\")}: {e.get(\\\"Test\\\",\\\"package\\\")}\\n  {e.get(\\\"Output\\\",\\\"\\\").rstrip()}\") for line in open(sys.argv[1],encoding=\"utf-8\",errors=\"replace\") if (lambda e: e.get(\"Action\") == \"fail\")(json.loads(line))]" unit-test.json || true; exit $${rc}'
+	bash -o pipefail -c 'set +e; go test -v -tags=unit ./... -count=1 2>&1 | tee unit-test.log; rc=$${PIPESTATUS[0]}; echo "--- unit test exit code: $${rc} ---"; if [ "$${rc}" -ne 0 ]; then echo "--- unit test failure lines ---"; grep -E "^(--- FAIL:|FAIL[[:space:]]|panic:|.*Error:|.*undefined:|.*cannot |.*no required module)" unit-test.log || true; fi; exit $${rc}'
 
 test-integration:
 	go test -tags=integration ./...
