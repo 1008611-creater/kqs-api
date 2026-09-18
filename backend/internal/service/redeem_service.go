@@ -684,11 +684,11 @@ func normalizeKqsMottoGiftCode(code string) string {
 	for _, r := range strings.TrimSpace(code) {
 		switch {
 		case r >= 'a' && r <= 'z':
-			_ = b.WriteRune(r - ('a' - 'A'))
+			_, _ = b.WriteRune(r - ('a' - 'A'))
 		case r >= 'A' && r <= 'Z':
-			_ = b.WriteRune(r)
+			_, _ = b.WriteRune(r)
 		case r >= '0' && r <= '9':
-			_ = b.WriteRune(r)
+			_, _ = b.WriteRune(r)
 		}
 	}
 	return b.String()

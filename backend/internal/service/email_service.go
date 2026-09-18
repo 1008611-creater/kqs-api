@@ -577,7 +577,7 @@ func wrapBase64(value string) string {
 		_ = b.WriteString("\r\n")
 		value = value[76:]
 	}
-	_ = b.WriteString(value)
+	_, _ = b.WriteString(value)
 	return b.String()
 }
 
