@@ -15,7 +15,7 @@ test:
 	golangci-lint run ./...
 
 test-unit:
-	set -o pipefail; go test -v -tags=unit ./... -count=1 2>&1 | tee unit-test.log; rc=$${PIPESTATUS[0]}; echo "--- unit test failure summary ---"; grep -E '^(--- FAIL:|FAIL\s|panic:|.*Error:|.*undefined:|.*cannot )' unit-test.log || true; exit $${rc}
+	bash -o pipefail -c 'go test -v -tags=unit ./... -count=1 2>&1 | tee unit-test.log; rc=$${PIPESTATUS[0]}; echo "--- unit test failure summary ---"; grep -E "^(--- FAIL:|FAIL[[:space:]]|panic:|.*Error:|.*undefined:|.*cannot )" unit-test.log || true; exit $${rc}'
 
 test-integration:
 	go test -tags=integration ./...
