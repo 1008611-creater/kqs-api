@@ -1,26 +1,41 @@
-﻿# 鐭挎硥姘碅PI 鍙戝竷鍊欓€夎褰?- 2026-05-25
+# 矿泉水API 发布候选记录 - 2026-05-25
 
-鏈褰曟弿杩板綋鍓嶅凡缁忛獙璇佽繃鐨勪簨瀹烇紝浠ュ強闃绘姝ｅ紡鍏紑鍙戝竷鐨勫墿浣欓椄闂ㄣ€傚綋鍓嶉樁娈甸€傚悎缁х画绠＄悊鍛橀獙鏀跺拰鍙楁帶閭€璇?Beta锛屼笉搴旂洿鎺ヤ綔涓烘棤闂ㄦ鍏紑鍙戝竷澹版槑銆?
-## 宸查獙璇佽瘉鎹?
-| 椤圭洰 | 缁撴灉 | 璇佹嵁 |
+本记录描述当前已经验证过的事实，以及阻止正式公开发布的剩余闸门。当前阶段适合继续管理员验收和受控邀请制 Beta，不应直接作为无门槛公开发布声明。
+
+## 已验证证据
+
+| 项目 | 结果 | 证据 |
 | --- | --- | --- |
-| 鍥哄畾闀滃儚杩愯 | 閫氳繃 | `sub2api-gg` 杩愯 `sub2api:kqs-api-prelaunch-20260525-2058`锛屽仴搴风姸鎬?`healthy` |
-| 鍋ュ悍妫€鏌?| 閫氳繃 | `http://localhost:18080/health` 涓?`https://api.cauai.fun/health` 杩斿洖 `{"status":"ok"}` |
-| 鍚庣娴嬭瘯 | 閫氳繃 | 浣跨敤 `golang:1.26.3-alpine` 瀹瑰櫒鎵ц `go test ./...` 閫氳繃 |
-| 鍓嶇鏋勫缓 | 閫氳繃 | Docker 闀滃儚鏋勫缓杩囩▼鍐?`pnpm run build` 鎴愬姛 |
-| 杩佺Щ鍚姩 | 閫氳繃 | `142_cau_prelaunch_defaults.sql` 宸插吋瀹瑰巻鍙?checksum锛宍143_reaffirm_cau_prelaunch_defaults.sql` 宸叉垚鍔熷簲鐢?|
-| Cloudflare Worker | 閫氳繃 | `sub2api-proxy` 宸查儴缃诧紝鐗堟湰 `768ca6f6-93c9-4d6c-8e8a-1ab4cf9fadf6` |
-| 鍙俊瀹㈡埛绔?IP | 閫氳繃 | Worker 瑙勮寖鍖栬瀹?IP 澶达紝鍚庣鍚敤 `SERVER_TRUSTED_PLATFORM=cloudflare`锛屽惎鍔ㄦ棩蹇椾笉鍐嶆彁绀?`server.trusted_proxies` 涓虹┖ |
-| URL 鐧藉悕鍗?| 閫氳繃 | 宸插惎鐢?`security.url_allowlist.enabled`锛屾樉寮忔斁琛?`api.openai.com`銆乣auth.openai.com`銆乣chatgpt.com` 绛夊繀瑕佷笂娓革紝鍚姩鏃ュ織涓嶅啀鎻愮ず鐧藉悕鍗曞叧闂?|
-| Codex 涓婃父鐑熸祴 | 閮ㄥ垎閫氳繃 | 鍚庡彴璐﹀彿娴嬭瘯宸插埌杈?`chatgpt.com`锛岃繑鍥炰笂娓?`usage_limit_reached`锛涜鏄庣櫧鍚嶅崟鏈嫤鎴紝浣嗗綋鍓?active OAuth 璐﹀彿棰濆害涓嶈冻锛屽皻鏃犳垚鍔熺敓鎴愯瘉鎹?|
-| 閭€璇锋敞鍐岄棬妲?| 閫氳繃 | 骞插噣璁垮鎵撳紑 `/register` 鍙閭€璇风爜杈撳叆妗嗕笌鍗忚纭鍏ュ彛 |
-| 鍏紑鍚堣鏂囨。 | 閫氳繃 | `/legal/terms`銆乣/legal/privacy`銆乣/legal/refund`銆乣/legal/usage-policy` 鍧囧彲璇诲彇姝ｆ枃 |
-| R2 鍩虹澶囦唤 | 閫氳繃 | bucket `sub2api-backups` 宸茶繛鎺ワ紝瀹氭椂绛栫暐 `30 2 * * *` 宸插紑鍚紝宸叉湁鎵嬪姩澶囦唤 `0cf00f51` |
+| 固定镜像运行 | 通过 | `sub2api-gg` 运行 `sub2api:kqs-api-prelaunch-20260525-2058`，健康状态 `healthy` |
+| 健康检查 | 通过 | `http://localhost:18080/health` 与 `https://api.cauai.fun/health` 返回 `{"status":"ok"}` |
+| 后端测试 | 通过 | 使用 `golang:1.26.3-alpine` 容器执行 `go test ./...` 通过 |
+| 前端构建 | 通过 | Docker 镜像构建过程中 `pnpm run build` 成功 |
+| 迁移启动 | 通过 | `142_cau_prelaunch_defaults.sql` 已兼容历史 checksum，`143_reaffirm_cau_prelaunch_defaults.sql` 已成功应用 |
+| Cloudflare Worker | 通过 | `sub2api-proxy` 已部署，版本 `768ca6f6-93c9-4d6c-8e8a-1ab4cf9fadf6` |
+| 可信客户端 IP | 通过 | Worker 规范化访问 IP 头，后端启用 `SERVER_TRUSTED_PLATFORM=cloudflare`，启动日志不再提示 `server.trusted_proxies` 为空 |
+| URL 白名单 | 通过 | 已启用 `security.url_allowlist.enabled`，显式放行 `api.openai.com`、`auth.openai.com`、`chatgpt.com` 等必要上游，启动日志不再提示白名单关闭 |
+| Codex 上游烟测 | 部分通过 | 后台账号测试已到达 `chatgpt.com`，返回上游 `usage_limit_reached`；说明白名单未拦截，但当前 active OAuth 账号额度不足，尚无成功生成证据 |
+| 邀请注册门槛 | 通过 | 干净访客打开 `/register` 可见邀请码输入框与协议确认入口 |
+| 公开合规文档 | 通过 | `/legal/terms`、`/legal/privacy`、`/legal/refund`、`/legal/usage-policy` 均可读取正文 |
+| R2 基础备份 | 通过 | bucket `sub2api-backups` 已连接，定时策略 `30 2 * * *` 已开启，已有手动备份 `0cf00f51` |
 
-## 鏁版嵁涓庨殣绉佽竟鐣?
-- 褰撳墠 R2 澶囦唤鏉ヨ嚜 PostgreSQL 鍏ㄩ噺瀵煎嚭锛屼笉浼氫富鍔ㄩ噰闆嗙敤鎴风數鑴戜腑鐨勭湡瀹炴枃浠舵垨鏂囨。鐩綍銆?- 澶囦唤浠嶅寘鍚笟鍔℃晱鎰熸暟鎹紝bucket 淇濇寔绉佹湁锛宼oken 浠呴檺鎸囧畾 bucket 鐨勫璞¤鍐欍€?- 涓嶈姹傜敤鎴锋彁浜ゅ畬鏁?Key銆佸畬鏁村崱瀵嗐€侀摱琛屽崱銆侀獙璇佺爜鎴?cookie 浠ュ鐞嗗鏈嶉棶棰樸€?
-## 灏氭湭鏀捐鐨勯椄闂?
-1. 宸ヤ綔鍖轰粛鍖呭惈澶ч噺鏈彁浜ゆ敼鍔紱灏氭湭褰㈡垚甯?git SHA 鐨勫喕缁撳彂甯冩彁浜ゅ拰 tag銆?2. 杩樻湭鍦ㄩ殧绂讳复鏃剁幆澧冨畬鎴愪竴娆?R2 澶囦唤鎭㈠婕旂粌銆?3. 闇€瑕佸湪鑷冲皯涓€涓?OpenAI OAuth 涓婃父璐﹀彿棰濆害鎭㈠鎴栬ˉ鍏呮柊璐﹀彿鍚庯紝鍐嶇敤鍏ㄦ柊娴嬭瘯鐢ㄦ埛璧板畬鍏綉閾捐矾锛氶個璇风爜娉ㄥ唽銆佸崱瀵嗗厬鎹€佸垱寤?`codex` Key銆佸鍒堕厤缃€乣/responses` 鎴愬姛銆?4. 闇€瑕佽Е鍙戝苟璁板綍閲嶅鍗″瘑銆侀敊璇崱瀵嗐€佷綑棰濅笉瓒炽€佹棤鏁?Key 绛夐敊璇満鏅殑鐢ㄦ埛鎸囧紩琛ㄧ幇銆?5. 姝ｅ紡瀹ｅ竷鍓嶅簲鍋氫竴娆℃棫闀滃儚鍥炴粴婕旂粌骞惰褰曞仴搴锋鏌ョ粨鏋溿€?6. `CORS allowed_origins` 鐣欑┖鍦ㄥ綋鍓嶅悓鍩?UI/API 閮ㄧ讲涓嬭〃绀洪粯璁ゆ嫆缁濇祻瑙堝櫒璺ㄥ煙璇锋眰锛屽凡璁板綍涓哄彲鎺ュ彈绛栫暐锛涙湭鏉ヨ嫢鎷嗗垎娴忚鍣ㄥ墠绔紝鍐嶉厤缃簿纭櫧鍚嶅崟銆?
-## 鏀鹃噺缁撹
+## 数据与隐私边界
 
-- 褰撳墠缁撹锛氬熀纭€鍙戝竷闂搁棬宸查€氳繃锛屽彲浠ヨ繘琛岀鐞嗗憳鑷祴鍜屽皯閲忓彈閭€鐢ㄦ埛 Beta 楠屾敹銆?- 褰撳墠缁撹锛氬皻涓嶅缓璁洿鎺ラ潰鍚戝鏍¤寖鍥村叕寮€鏀惰垂鎺ㄥ箍銆?- 涓嬩竴鏈€灏忓姩浣滐細琛ュ厖鎴栫瓑寰呬竴涓彲鐢?OpenAI OAuth 涓婃父璐﹀彿棰濆害锛岄殢鍚庡垱寤轰竴涓叏鏂版祴璇曡处鍙峰畬鎴愬叕缃戝叏娴佺▼涓庨敊璇満鏅獙鏀躲€?
+- 当前 R2 备份来自 PostgreSQL 全量导出，不会主动采集用户电脑中的真实文件或文档目录。
+- 备份仍包含业务敏感数据，bucket 保持私有，token 仅限指定 bucket 的对象读写。
+- 不要求用户提交完整 Key、完整卡密、银行卡、验证码或 cookie 以处理客服问题。
+
+## 尚未放行的闸门
+
+1. 工作区仍包含大量未提交改动；尚未形成带 git SHA 的冻结发布提交和 tag。
+2. 还未在隔离临时环境完成一次 R2 备份恢复演练。
+3. 需要在至少丢失一个 OpenAI OAuth 上游账号额度恢复或补充新账号后，再用全新测试用户走完公网链路：邀请码注册、卡密兑换、创建 `codex` Key、复制配置、`/responses` 成功。
+4. 需要触发并记录重复卡密、错误卡密、余额不足、无权限 Key 等错误场景的用户指引表现。
+5. 正式宣布前应做一次旧镜像回滚演练并记录健康检查结果。
+6. `CORS allowed_origins` 留空在当前同源 UI/API 部署下表示默认拒绝浏览器跨域请求，已记录为可接受策略；未来若拆分浏览器前端，再配置精确白名单。
+
+## 放量结论
+
+- 当前结论：基础发布闸门已通过，可以进行管理员自测和少量受邀请用户 Beta 验收。
+- 当前结论：尚不建议直接面向学校范围公开发布与收费推广。
+- 当前最小动作：补充或等待一个可用 OpenAI OAuth 上游账号额度，随后创建一个全新测试账号完成公网全流程与错误场景验收。

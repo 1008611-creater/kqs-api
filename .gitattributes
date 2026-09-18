@@ -11,3 +11,12 @@ backend/migrations/*.sql text eol=lf
 *.yaml text eol=lf
 Dockerfile text eol=lf
 *.ps1 text eol=crlf
+
+# 文档与配置同样固定为 LF。
+# 不加这几条时 *.md 的 text 属性是 unspecified，checkout 到 Windows 会产生
+# CRLF 工作区文件，导致修改一行也呈现出整个文件的 diff，掩盖真实改动。
+*.md text eol=lf
+*.json text eol=lf
+*.toml text eol=lf
+*.sql text eol=lf
+*.py text eol=lf
