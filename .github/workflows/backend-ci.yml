@@ -47,6 +47,14 @@ jobs:
                 escaped=$(printf '%s' "$line" | sed 's/%/%25/g; s/\r/%0D/g; s/\n/%0A/g')
                 echo "::error file=backend/Makefile,line=18::${escaped}"
               done || true
+          # Assertion detail lines (file:line plus Error/Test blocks) are needed
+          # to fix a failing test; the summary line alone is not actionable.
+          grep -E '^[[:space:]]+.*_test\.go:[0-9]+:' unit-test.log \
+            | head -n 60 \
+            | while IFS= read -r line; do
+                escaped=$(printf '%s' "$line" | sed 's/%/%25/g; s/\r/%0D/g; s/\n/%0A/g')
+                echo "::error file=backend/Makefile,line=18::${escaped}"
+              done || true
       - name: Upload unit test log on failure
         if: failure()
         uses: actions/upload-artifact@v4
