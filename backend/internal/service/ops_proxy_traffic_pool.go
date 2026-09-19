@@ -170,7 +170,7 @@ func (s *OpsService) inspectProxyTrafficPool(ctx context.Context, cfg *OpsProxyT
 	if item.UsedBytes == nil && item.TotalBytes == nil {
 		item.Message = proxyTrafficPoolNoUsageMessage(registeredInMihomo)
 	}
-	classifyProxyTrafficPoolStatus(item)
+	classifyProxyTrafficPoolStatus(item, now)
 	return item
 }
 
@@ -205,7 +205,10 @@ func applyProxyTrafficUsage(item *OpsProxyTrafficPoolItem, usage *proxyTrafficUs
 	}
 }
 
-func classifyProxyTrafficPoolStatus(item *OpsProxyTrafficPoolItem) {
+// classifyProxyTrafficPoolStatus evaluates expiry against `now` instead of the
+// wall clock so the result is reproducible and testable. Using time.Now() here
+// made status depend on when the check ran rather than on the check timestamp.
+func classifyProxyTrafficPoolStatus(item *OpsProxyTrafficPoolItem, now time.Time) {
 	item.Status = "unknown"
 	if item.UsedBytes != nil && item.TotalBytes != nil && *item.TotalBytes > 0 {
 		switch {
@@ -217,7 +220,7 @@ func classifyProxyTrafficPoolStatus(item *OpsProxyTrafficPoolItem) {
 			item.Status = "ok"
 		}
 	}
-	if item.ExpiresAt != nil && time.Now().UTC().After(*item.ExpiresAt) {
+	if item.ExpiresAt != nil && now.UTC().After(*item.ExpiresAt) {
 		item.Status = "expired"
 	}
 }
@@ -237,7 +240,7 @@ func buildCurrentMihomoTrafficPoolItem(usage *proxyTrafficUsage, now time.Time) 
 		Message:            "订阅站点未返回可读流量元数据时，使用服务器本机 Mihomo 配置/状态文件里的当前流量。具体订阅链接已隐藏。",
 	}
 	applyProxyTrafficUsage(item, usage)
-	classifyProxyTrafficPoolStatus(item)
+	classifyProxyTrafficPoolStatus(item, now)
 	return item
 }
 

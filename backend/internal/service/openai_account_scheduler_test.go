@@ -1101,26 +1101,32 @@ func TestOpenAIAccountRuntimeStats_ReportConcurrent(t *testing.T) {
 }
 
 func TestSelectTopKOpenAICandidates(t *testing.T) {
+	// 排序使用 effectivePriority（生产环境由 account.EffectivePriority 计算），
+	// 因此这里必须显式给出，否则全部为 0，只按负载排序。
 	candidates := []openAIAccountCandidateScore{
 		{
-			account:  &Account{ID: 11, Priority: 2},
-			loadInfo: &AccountLoadInfo{LoadRate: 10, WaitingCount: 1},
-			score:    10.0,
+			account:           &Account{ID: 11, Priority: 2},
+			loadInfo:          &AccountLoadInfo{LoadRate: 10, WaitingCount: 1},
+			effectivePriority: 2,
+			score:             10.0,
 		},
 		{
-			account:  &Account{ID: 12, Priority: 1},
-			loadInfo: &AccountLoadInfo{LoadRate: 20, WaitingCount: 1},
-			score:    9.5,
+			account:           &Account{ID: 12, Priority: 1},
+			loadInfo:          &AccountLoadInfo{LoadRate: 20, WaitingCount: 1},
+			effectivePriority: 1,
+			score:             9.5,
 		},
 		{
-			account:  &Account{ID: 13, Priority: 1},
-			loadInfo: &AccountLoadInfo{LoadRate: 30, WaitingCount: 0},
-			score:    10.0,
+			account:           &Account{ID: 13, Priority: 1},
+			loadInfo:          &AccountLoadInfo{LoadRate: 30, WaitingCount: 0},
+			effectivePriority: 1,
+			score:             10.0,
 		},
 		{
-			account:  &Account{ID: 14, Priority: 0},
-			loadInfo: &AccountLoadInfo{LoadRate: 40, WaitingCount: 0},
-			score:    8.0,
+			account:           &Account{ID: 14, Priority: 0},
+			loadInfo:          &AccountLoadInfo{LoadRate: 40, WaitingCount: 0},
+			effectivePriority: 0,
+			score:             8.0,
 		},
 	}
 

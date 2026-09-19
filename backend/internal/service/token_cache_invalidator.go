@@ -41,11 +41,14 @@ func (c *CompositeTokenCacheInvalidator) InvalidateToken(ctx context.Context, ac
 		keysToDelete = append(keysToDelete, "gemini:"+accountIDKey)
 	case PlatformAntigravity:
 		// Antigravity 可能有两种缓存键：旧版基于 project_id，新版基于 account_id
-		// 显式清理旧版可能残留的 project 缓存键，同时清理当前基于 account 的缓存键
+		// 显式清理旧版可能残留的 project 缓存键，同时清理当前基于 account 的缓存键。
+		//
+		// 这里不能用 AntigravityTokenCacheKey：它在存在 project_id 时会返回
+		// project 键，导致 account 级缓存键永远不会被清理。
 		if projectID := strings.TrimSpace(account.GetCredential("project_id")); projectID != "" {
 			keysToDelete = append(keysToDelete, "ag:"+projectID)
 		}
-		keysToDelete = append(keysToDelete, AntigravityTokenCacheKey(account))
+		keysToDelete = append(keysToDelete, "ag:"+accountIDKey)
 	case PlatformOpenAI:
 		keysToDelete = append(keysToDelete, OpenAITokenCacheKey(account))
 	case PlatformAnthropic:
