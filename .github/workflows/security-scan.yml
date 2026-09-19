@@ -27,7 +27,22 @@ jobs:
       - name: Run govulncheck
         working-directory: backend
         run: |
-          go install golang.org/x/vuln/cmd/govulncheck@latest
+          # proxy.golang.org intermittently fails module downloads with HTTP/2
+          # INTERNAL_ERROR. Retry the tool install so infra flakiness is not
+          # reported as a code security failure.
+          install_ok=0
+          for attempt in 1 2 3; do
+            if go install golang.org/x/vuln/cmd/govulncheck@latest; then
+              install_ok=1
+              break
+            fi
+            echo "govulncheck install attempt ${attempt} failed; retrying"
+            sleep 10
+          done
+          if [ "$install_ok" -ne 1 ]; then
+            echo "::error title=govulncheck install failed::could not install govulncheck after 3 attempts"
+            exit 1
+          fi
           set +e
           govulncheck -format=json ./... > govulncheck.json
           scan_exit=$?
