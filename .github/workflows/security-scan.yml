@@ -43,19 +43,32 @@ jobs:
             echo "::error title=govulncheck install failed::could not install govulncheck after 3 attempts"
             exit 1
           fi
+          # Capture stdout and stderr separately. govulncheck writes
+          # non-finding diagnostics to stderr; without them a bare "exit code 1"
+          # cannot be triaged from public check metadata.
           set +e
-          govulncheck -format=json ./... > govulncheck.json
+          govulncheck -format=json ./... > govulncheck.json 2> govulncheck.err
           scan_exit=$?
           set -e
+          echo "govulncheck exit: ${scan_exit}"
+          if [ -s govulncheck.err ]; then
+            echo "--- govulncheck stderr (tail) ---"
+            tail -n 40 govulncheck.err
+          fi
           if [ "$scan_exit" -ne 0 ] && [ ! -s govulncheck.json ]; then
-            echo "govulncheck failed without producing JSON output"
             echo "::error title=govulncheck failed::exit=${scan_exit} with empty JSON output; check module downloads and proxy availability"
+            if [ -s govulncheck.err ]; then
+              tail -n 20 govulncheck.err | while IFS= read -r line; do
+                echo "::error::${line}"
+              done
+            fi
             exit "$scan_exit"
           fi
           if [ "$scan_exit" -ne 0 ]; then
             echo "::notice title=govulncheck exit::govulncheck exited ${scan_exit} but produced JSON; parsing findings"
           fi
-          python3 - <<'PY'
+          set +e
+          python3 - <<'PY' > govulncheck-report.txt 2>&1
           import json
           import os
           from pathlib import Path
@@ -105,7 +118,18 @@ jobs:
 
           print("govulncheck found no vulnerability records; informational call traces are not treated as findings.")
           PY
-          rm -f govulncheck.json
+          py_exit=$?
+          set -e
+          echo "--- govulncheck report ---"
+          cat govulncheck-report.txt
+          if [ "$py_exit" -ne 0 ]; then
+            echo "::error title=govulncheck gate failed::python_exit=${py_exit} scan_exit=${scan_exit}"
+            tail -n 25 govulncheck-report.txt | while IFS= read -r line; do
+              echo "::error::${line}"
+            done
+            exit "$py_exit"
+          fi
+          rm -f govulncheck.json govulncheck.err govulncheck-report.txt
 
   frontend-security:
     runs-on: ubuntu-latest
