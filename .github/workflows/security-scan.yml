@@ -34,7 +34,11 @@ jobs:
           set -e
           if [ "$scan_exit" -ne 0 ] && [ ! -s govulncheck.json ]; then
             echo "govulncheck failed without producing JSON output"
+            echo "::error title=govulncheck failed::exit=${scan_exit} with empty JSON output; check module downloads and proxy availability"
             exit "$scan_exit"
+          fi
+          if [ "$scan_exit" -ne 0 ]; then
+            echo "::notice title=govulncheck exit::govulncheck exited ${scan_exit} but produced JSON; parsing findings"
           fi
           python3 - <<'PY'
           import json
@@ -74,6 +78,9 @@ jobs:
               print("Confirmed govulncheck vulnerabilities:")
               for osv, events in sorted(unique.items()):
                   print(f"  {osv}")
+                  # Annotations are readable without an authenticated artifact
+                  # download; the step log alone is not enough for public triage.
+                  print(f"::error title=Confirmed govulncheck vulnerability::{osv}")
                   for event in events[:3]:
                       if event.get("finding"):
                           print(f"    finding: {json.dumps(event['finding'], sort_keys=True)}")
