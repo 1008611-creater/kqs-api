@@ -147,6 +147,10 @@ func (s *AuthService) RegisterWithVerification(ctx context.Context, email, passw
 	if isReservedEmail(email) {
 		return "", nil, ErrEmailReserved
 	}
+	if err := s.validateRegistrationEmailPolicy(ctx, email); err != nil {
+		return "", nil, err
+	}
+
 	// 邀请码开关打开时，邮箱密码注册也必须提供有效邀请码。
 	// OAuth 首次注册已经强制邀请码；这里保持邮箱注册和 OAuth 注册一致，避免注册机绕过邀请码入口。
 	var invitationRedeemCode *RedeemCode
@@ -173,16 +177,19 @@ func (s *AuthService) RegisterWithVerification(ctx context.Context, email, passw
 		invitationRedeemCode = redeemCode
 	}
 
-	// 邮箱密码注册统一强制邮箱验证码，不再只限制 CAU/KQS 后缀。
-	if s.emailService == nil {
-		logger.LegacyPrintf("service.auth", "%s", "[Auth] Email verification required but email service not configured, rejecting registration")
-		return "", nil, ErrServiceUnavailable
-	}
-	if verifyCode == "" {
-		return "", nil, ErrEmailVerifyRequired
-	}
-	if err := s.emailService.VerifyCode(ctx, email, verifyCode); err != nil {
-		return "", nil, fmt.Errorf("verify code: %w", err)
+	// CAU/KQS 邮箱始终需要验证；其他邮箱仅在全局开关开启时需要验证。
+	emailVerifyRequired := isKqsRegistrationEmail(email) || (s.settingService != nil && s.settingService.IsEmailVerifyEnabled(ctx))
+	if emailVerifyRequired {
+		if s.emailService == nil {
+			logger.LegacyPrintf("service.auth", "%s", "[Auth] Email verification required but email service not configured, rejecting registration")
+			return "", nil, ErrServiceUnavailable
+		}
+		if verifyCode == "" {
+			return "", nil, ErrEmailVerifyRequired
+		}
+		if err := s.emailService.VerifyCode(ctx, email, verifyCode); err != nil {
+			return "", nil, fmt.Errorf("verify code: %w", err)
+		}
 	}
 
 	// 检查邮箱是否已存在
@@ -285,6 +292,9 @@ func (s *AuthService) SendVerifyCode(ctx context.Context, email string, locale .
 
 	if isReservedEmail(email) {
 		return ErrEmailReserved
+	}
+	if err := s.validateRegistrationEmailPolicy(ctx, email); err != nil {
+		return err
 	}
 	// 检查邮箱是否已存在
 	existsEmail, err := s.userRepo.ExistsByEmail(ctx, email)
@@ -1072,7 +1082,7 @@ func buildEmailSuffixNotAllowedError(whitelist []string) error {
 	return infraerrors.BadRequest(
 		"EMAIL_SUFFIX_NOT_ALLOWED",
 		fmt.Sprintf("email suffix is not allowed, allowed suffixes: %s", allowed),
-	).WithMetadata(map[string]string{
+	).WithCause(ErrEmailSuffixNotAllowed).WithMetadata(map[string]string{
 		"allowed_suffixes":     strings.Join(whitelist, ","),
 		"allowed_suffix_count": strconv.Itoa(len(whitelist)),
 	})
