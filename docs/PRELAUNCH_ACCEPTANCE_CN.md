@@ -18,12 +18,17 @@
 | 单测稳定性（flaky） | ✅ 已修复 | 定位到根因并修掉，见 2.1 |
 | 凭据与生产数据保护 | ✅ 已加护栏 | 未泄露，但此前无防护，见 2.2 |
 | 条款页线上可用 | ✅ 通过 | 四个页面均 200，见第 3 节 |
+| 注册/登录页条款确认 | ✅ 通过 | `LoginAgreementPrompt.vue`，见 6.4 |
+| 客服求助入口 | ✅ 通过 | 二维码可加载，见 6.3 |
+| **风控额度限损（默认额度）** | ❌ **与闸门冲突** | **新建 Key 默认无限额度**，见 6.2 |
 | 隔离备份恢复演练 | ❌ **未执行** | 阻塞：本机 Docker daemon 未启动 |
 | `prelaunch-readiness.ps1` | ❌ **未执行** | 阻塞：需管理员凭据 |
 | xlsx 安全例外 | ⏳ 待清理 | 2026-09-30 到期，需 pnpm 环境 |
+| 版本名与镜像 tag | ⏳ 待发布时确定 | 见 6.1 |
 
-**一句话**：代码层面的阻塞已清零；剩下的三项都是"必须有人在场"的动作，
-不是靠改代码能推进的。具体需要做什么见第 4 节。
+**一句话**：代码门禁与凭据护栏已闭环，但**闸门第 4 项的"最低限损配置"目前是
+未满足状态**——新建 Key 默认无限额度，且数据库触发器会主动把限损默认值改写成
+不限。这一条需要你明确决策（接受风险 / 改回限损默认），不是能替你决定的事。
 
 ---
 
@@ -190,7 +195,84 @@ $env:Path += ";C:\Program Files\Git\cmd"
 
 ---
 
-## 5. 观察项（有风险但暂无证据，本轮不改）
+## 6. 其余闸门项逐条核对（本轮补做）
+
+前几节只覆盖了条款与备份。这一节把剩下能静态核对的项补齐。
+**注意区分"代码默认值"与"线上实际值"**：本节查的是前者，
+后者仍需 `prelaunch-readiness.ps1` 或后台确认。
+
+### 6.1 版本名与镜像 tag（闸门第 1 项）
+
+| 检查 | 结果 | 证据 |
+| --- | --- | --- |
+| 版本名 `kqs-api-v0.2.0-beta` | ⏳ 未落 | `backend/cmd/server/VERSION` 是 `0.1.130` |
+| `SUB2API_IMAGE` 固定 tag | ⚠️ 有兜底风险 | 三个 compose 文件默认都是 `weishaw/sub2api:latest` |
+
+镜像 tag 这一条**不算阻塞但要看清楚**：`deploy/docker-compose*.yml` 的默认值
+确实是漂移的 `latest`，但 `ops/production/deploy-remote.sh:66` 会在
+`.env` 缺 `SUB2API_IMAGE` 时**直接报错退出**，所以部署链路是有兜底守住的。
+发布时按 `docs/RELEASE_RUNBOOK_CN.md:115` 写成
+`sub2api:kqs-api-v0.2.0-beta-<sha>` 即可。
+
+### 6.2 风控额度限损（闸门第 4 项）—— **未满足，与文档冲突**
+
+闸门第 45–48 行要求的**最低限损配置**是：
+
+- 新建 Codex Key 默认额度 `15.9 USD`
+- 默认速率保护：5 小时 `5 USD`、1 天 `15.9 USD`、7 天 `34.9 USD`
+
+**实际代码行为完全相反**：
+
+1. `frontend/src/views/user/KeysView.vue:1153-1160` —— 建 Key 表单默认值
+   `enable_quota: false` / `enable_rate_limit: false`，两者默认关闭。
+2. 同文件 `:1526` —— 关闭时提交 `{rate_limit_5h: 0, rate_limit_1d: 0, rate_limit_7d: 0}`。
+3. `backend/migrations/158_...sql` —— 建了 `BEFORE INSERT` 触发器
+   `api_keys_new_default_limits_to_unlimited()`：新建 Key 时若 `quota = 15.9`
+   就**改写为 0**；若速率限制恰为 `(5, 15.9, 34.9)` 就**三个全改写为 0**。
+4. `backend/migrations/159_...sql` —— 把**存量** Key 的同款默认值也刷成 0。
+5. 已确认 `160 / 161 / 162` 三个后续 migration **都没有推翻这个触发器**。
+
+`0 = 不限制`。所以当前状态是：**新建 Key 默认额度不限 + 速率全不限**，
+而且即使客户端提交闸门推荐的 `15.9 / 5 / 15.9 / 34.9`，数据库也会**静默改写成不限**。
+
+**为什么这条重要**：闸门把这几项列为"最低限损配置"，防的就是
+"一个 Key 泄露 = 无上限烧钱"。现在这个保护是默认关闭的。
+
+> 这很可能是后来有意的体验决策（migration 注释写着
+> "Normalize old frontend default API key limits to unlimited"），
+> 但它与闸门文档直接冲突。**改不改是产品/风控决策，我不代为决定。**
+> 若要改回限损默认，需要：改前端默认值 + 写一个新 migration 丢弃 158 的触发器
+> （仅改前端不够，触发器会把值再改回 0）。
+
+附带：闸门第 47 行还要求"页面必须说明 `0 = 不限制` 不适合新手"。
+`frontend/src/i18n/locales/zh.ts:797` 目前只写了事实
+（"新建密钥默认不限制用量；需要控制额度或速率时，可以手动开启限制"），
+**没有风险提示**，不满足"不适合新手"这层要求。
+
+另外 `security.url_allowlist.enabled` 的代码默认值是 **false**
+（`backend/internal/config/config.go:1541`）。闸门第 52 行要求"公开放量前必须开启"，
+所以**这是一个必须在线上配置里显式打开、且需要单独确认的项**。
+
+### 6.3 客服与求助闭环（闸门第 5 项）
+
+| 检查 | 结果 | 证据 |
+| --- | --- | --- |
+| 用户页有求助入口 | ✅ | `views/user/GuideView.vue:184` 展示联系二维码 |
+| 二维码资源存在 | ✅ | `frontend/public/support-contact-qr.jpg`（119KB） |
+| 线上可加载 | ✅ | `https://api.cauai.fun/support-contact-qr.jpg` → 200 |
+
+> 注：闸门要求"不要收集完整 API Key / 完整卡密"等，属于**文案与流程**要求，
+> 需人工核对页面实际文案，本轮未逐字检查。
+
+### 6.4 条款确认（闸门第 2 项补充）
+
+`frontend/src/components/auth/LoginAgreementPrompt.vue:20` 有
+"我已阅读并同意"的条款确认组件 → 登录/注册页条款确认**已启用**。
+四个条款页本身见第 3 节，均 200。
+
+---
+
+## 7. 观察项（有风险但暂无证据，本轮不改）
 
 1. **其他紧时间断言**：`internal/handler/failover_loop_test.go` 里有
    50ms / 100ms / 200ms 一串上限，`openai_ws_pool_test.go:673` 有 80ms。
