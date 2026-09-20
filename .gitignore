@@ -186,3 +186,13 @@ local-secrets/
 /service-test.*
 /backend/sub2api-*
 /backend/frontend-dist-*.tar.gz
+
+# Live admin-API exports staged under ops/production/. Every account record
+# carries a `credentials` object (upstream API keys / OAuth tokens) and the
+# user export carries emails and balances. These have never been committed,
+# so this is a guardrail against a future `git add -A`, not a cleanup.
+# Keep them out of the repo: store production exports outside the worktree.
+/ops/production/backup-*/
+
+# Release binaries staged for scp to the server.
+/ops/production/sub2api-*
