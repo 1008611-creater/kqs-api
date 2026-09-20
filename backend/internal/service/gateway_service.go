@@ -6915,7 +6915,39 @@ func extractUpstreamErrorMessageForClient(body []byte) string {
 	if raw == "" {
 		return ""
 	}
+	// 上游不可达时经常返回代理/网关的 HTML 错误页（502/504），直接回显会把
+	// 内部地址与凭据一起送给客户端。这里先转成脱敏后的纯文本摘要。
+	if looksLikeHTMLUpstreamBody(raw) {
+		return sanitizeClientFacingUpstreamMessage(sanitizeHTMLUpstreamSnippet(raw))
+	}
 	return sanitizeClientFacingUpstreamMessage(raw)
+}
+
+var (
+	htmlTagRegex             = regexp.MustCompile(`<[^>]*>`)
+	htmlDocumentHintRegex    = regexp.MustCompile(`(?i)<\s*!?\s*(doctype|html|head|body)\b`)
+	upstreamHostPortRegex    = regexp.MustCompile(`\b\d{1,3}(?:\.\d{1,3}){3}(?::\d{1,5})?\b`)
+	upstreamSensitiveKVRegex = regexp.MustCompile(`(?i)^\S*(?:key|token|secret|password|passwd|authorization|cookie|signature)\S*=\S*$`)
+)
+
+// looksLikeHTMLUpstreamBody 判断上游响应体是否是 HTML 页面而不是纯文本诊断信息。
+func looksLikeHTMLUpstreamBody(raw string) bool {
+	return htmlDocumentHintRegex.MatchString(raw) || strings.Contains(raw, "</")
+}
+
+// sanitizeHTMLUpstreamSnippet 把 HTML 错误页压成一行客户端可见的文本摘要：
+// 去掉标签，并整段丢弃携带内网地址（含端口）或形如 key=xxx 的凭据片段，
+// 避免把网关地址、上游 IP、API key 泄露给调用方。
+func sanitizeHTMLUpstreamSnippet(raw string) string {
+	text := htmlTagRegex.ReplaceAllString(raw, " ")
+	kept := make([]string, 0, 24)
+	for _, token := range strings.Fields(text) {
+		if upstreamHostPortRegex.MatchString(token) || upstreamSensitiveKVRegex.MatchString(token) {
+			continue
+		}
+		kept = append(kept, token)
+	}
+	return strings.Join(kept, " ")
 }
 
 func sanitizeClientFacingUpstreamMessage(msg string) string {

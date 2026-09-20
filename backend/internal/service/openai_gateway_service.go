@@ -3791,7 +3791,7 @@ func (s *OpenAIGatewayService) handleStreamingResponsePassthrough(
 		for _, pending := range pendingLines {
 			if _, err := fmt.Fprintln(w, pending); err != nil {
 				clientDisconnected = true
-				logger.LegacyPrintf("service.openai_gateway", "[OpenAI passthrough] Client disconnected during streaming, aborting upstream stream: account=%d", account.ID)
+				logger.LegacyPrintf("service.openai_gateway", "[OpenAI passthrough] Client disconnected during streaming, continue draining upstream for usage: account=%d", account.ID)
 				return false
 			}
 		}
@@ -3865,18 +3865,18 @@ func (s *OpenAIGatewayService) handleStreamingResponsePassthrough(
 				continue
 			}
 			if !clientOutputStarted && len(pendingLines) > 0 {
+				// 写入失败只标记断连：仍然继续读取上游，保证 usage 能收全。
 				if !writePendingLines() {
-					return resultWithUsage(), ErrOpenAIClientDisconnected
+					continue
 				}
 			}
 			if _, err := fmt.Fprintln(w, line); err != nil {
 				clientDisconnected = true
-				logger.LegacyPrintf("service.openai_gateway", "[OpenAI passthrough] Client disconnected during streaming, aborting upstream stream: account=%d", account.ID)
-				return resultWithUsage(), ErrOpenAIClientDisconnected
-			} else {
-				clientOutputStarted = true
-				flusher.Flush()
+				logger.LegacyPrintf("service.openai_gateway", "[OpenAI passthrough] Client disconnected during streaming, continue draining upstream for usage: account=%d", account.ID)
+				continue
 			}
+			clientOutputStarted = true
+			flusher.Flush()
 		}
 	}
 	if err := scanner.Err(); err != nil {
@@ -3927,7 +3927,12 @@ func (s *OpenAIGatewayService) handleStreamingResponsePassthrough(
 		}
 		return resultWithUsage(), errors.New("stream usage incomplete: missing terminal event")
 	}
-	if ctx != nil && ctx.Err() != nil {
+	// 客户端断开后仍要继续排空上游：只要收齐了终止事件（usage 完整），
+	// 就按成功返回，保证断连的请求也能正确计费。
+	// 同理，入站 context 被取消也不代表上游失败——上游请求用的是脱离
+	// 客户端的 detach 后的 context，流读完了就该正常计费。
+	clientGone := clientDisconnected || (ctx != nil && ctx.Err() != nil)
+	if clientGone && !sawDone && !sawTerminalEvent {
 		return resultWithUsage(), ErrOpenAIClientDisconnected
 	}
 
