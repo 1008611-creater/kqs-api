@@ -1004,7 +1004,11 @@ func TestOpenAIGatewayService_PrewarmReadHonorsParentContext(t *testing.T) {
 		Schedulable: true,
 	}
 	conn := newOpenAIWSConn("prewarm_ctx_conn", account.ID, &openAIWSBlockingConn{
-		readDelay: 200 * time.Millisecond,
+		// 伪造读取阻塞 2s：预热读取若真的受父 ctx 控制，就会在 40ms 处返回；
+		// 若退化成只读 read_timeout，则至少要到 2s 才返回，1s 的上限必然失败。
+		// 这里刻意把 readDelay 拉远，是为了给 CI 机器的调度抖动留足余量——
+		// 原值 readDelay=200ms 配上 180ms 上限只有 20ms 容错，负载一高就偶发失败。
+		readDelay: 2 * time.Second,
 	}, nil)
 	lease := &openAIWSConnLease{
 		accountID: account.ID,
@@ -1032,7 +1036,7 @@ func TestOpenAIGatewayService_PrewarmReadHonorsParentContext(t *testing.T) {
 	elapsed := time.Since(start)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "prewarm_read_event")
-	require.Less(t, elapsed, 180*time.Millisecond, "预热读取应受父 context 取消控制，不应阻塞到 read_timeout")
+	require.Less(t, elapsed, time.Second, "预热读取应受父 context 取消控制，不应阻塞到 read_timeout")
 }
 
 func TestOpenAIGatewayService_Forward_WSv2_TurnMetadataInPayloadOnConnReuse(t *testing.T) {
