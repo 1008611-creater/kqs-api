@@ -29,15 +29,17 @@
 
 ## 1. 代码门禁
 
-最新提交 `a8949fc25` 的三个工作流：
+提交 `a8949fc25` 的三个工作流**全部 success**（结论由匿名 API 的 `conclusion`
+字段核对，非目测）：
 
-| 工作流 | 关键 job | 结论 | 证据 |
+| 工作流 | run id | 结论 | 关键 job |
 | --- | --- | --- | --- |
-| CI（verify） | — | success | run `35500722xxx` |
-| CI（backend） | test / frontend / golangci-lint | success | 见下 |
-| Security Scan | backend-security / frontend-security | success | 见下 |
+| CI（backend） | `35491235679` | success | test / frontend / golangci-lint 全绿 |
+| CI（verify） | `35491235678` | success | — |
+| Security Scan | `35491235674` | success | backend-security / frontend-security |
 
-（run id 以 GitHub Actions 页面为准；结论通过匿名 API 拉取 `conclusion` 字段核对。）
+其中 `test` job 的步骤级状态：Unit tests completed（无失败）、
+Integration tests completed、frontend 05:17:10Z、golangci-lint 05:17:43Z。
 
 ### 历史上最近一次失败已定位
 
